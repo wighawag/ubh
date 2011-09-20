@@ -1,0 +1,21 @@
+application: highscores-service
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+- url: /(.*\.(html|css|js|gif|jpg|png|ico|swf))
+  static_files: static/\1
+  upload: static/.*
+  expiration: "1d"
+
+- url: /googleUser
+  script : authentification/google/googleUserEntryPoint.py
+  login: required
+
+- url: /facebookCanvas/
+  script : authentification/facebook/entryPoint.py
+
+- url: /.*
+  script: app.py
+
