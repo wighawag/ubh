@@ -1,14 +1,15 @@
 from google.appengine.ext import db
 
-from score.review import ScoreReview, getOldScoreReview
+from score.review import ScoreReview, getOldScoreReviewKey
 
 class Player(db.Model):
     nickname = db.StringProperty(required=True)
     creationDateTime = db.DateTimeProperty(auto_now_add=True)
     seed = db.IntegerProperty()
     seedDateTime = db.DateTimeProperty()
-    scoreToVerify = db.ReferenceProperty(ScoreReview)
+    currentScoreReviewKey = db.ReferenceProperty(ScoreReview)
     verifiedScore = db.IntegerProperty() # should be db.BlobProperty() do deal with any kind of score/state data ?
+    numCheat = db.IntegerProperty()
     #gameFriends = db.ListProperty()
 
 def createPlayer(userId, nickname, linkOldReview = False):
@@ -16,9 +17,9 @@ def createPlayer(userId, nickname, linkOldReview = False):
 
     if linkOldReview:
         # will work since the player has never played before (he will not get his own score)
-        scoreReview = getOldScoreReview()
-        if scoreReview is not None:
-            player.scoreToVerify = scoreReview
+        scoreReviewKey = getOldScoreReviewKey()
+        if scoreReviewKey is not None:
+            player.currentScoreReviewKey = scoreReviewKey
 
     player.put()
     return player

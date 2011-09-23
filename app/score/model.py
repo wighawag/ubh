@@ -27,6 +27,6 @@ def createScore(player, value, actions, numUpdates, seed, reviewers):
 def getScoreById(scoreId):
     return Score.get_by_id(scoreId)
 
-def getScoreForReviewer(playerId):
+def getScoreReviewKeyForReviewer(playerId):
     scoreReview = db.GqlQuery("SELECT __key__ FROM ScoreReview WHERE potentialReviewers = :playerId", playerId=playerId).get()
     return scoreReview
