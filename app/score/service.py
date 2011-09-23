@@ -90,8 +90,15 @@ def reviewScore(playerId, scoreValue):
     if score.value == scoreValue:
         score.player.verifiedScore = score.value # maybe set verifiedScore to actual score model? or delete score ?
         score.player.put()
-        #TODO : db.delete(scoreReviewKey)
-        #TODO : delete conflicts and set conflicting player as cheater
+
+        #delete conflicts and set conflicting reviewers as cheater
+        conflicts = ReviewConflict.gql("WHERE review=:review", review=scoreReviewKey).fetch(3) # shoud not be more than 2
+        for conflict in conflicts:
+            if conflict.scoreValue != scoreValue:
+                conflict.player.numCheat+=1
+                conflict.player.put()
+                conflict.delete()
+        db.delete(scoreReviewKey)
         #TODO : deal with no more existing review and conflicts when reviewScore is called after getRandomScore was already called with the review being deleted (?)
     else:
         #check whether a conflict exist with the same score value, if that is the case, player has cheated
@@ -101,10 +108,17 @@ def reviewScore(playerId, scoreValue):
                 #player is a cheater
                 score.player.numCheat+=1
                 score.player.put()
-                #TODO : remove stuffs and assign cheater status to reviewer
+
+                #remove stuffs and assign cheater status to reviewer
+                for conflict in conflicts:
+                    if conflict.scoreValue != scoreValue:
+                        conflict.player.numCheat+=1
+                        conflict.player.put()
+                        conflict.delete()
+                db.delete(scoreReviewKey)
                 return
             else:
-                #TODO : deal with : if too many different we cannot really deal with them
+                #TODO : deal with : if too many different we cannot really deal with them, it should not happen though
                 pass
         newConflict = ReviewConflict(player=player,review=scoreReviewKey,scoreValue=scoreValue)
         newConflict.put()
