@@ -11,16 +11,16 @@ class Score(db.Model):
     seed = db.IntegerProperty()
     dateTime = db.DateTimeProperty(auto_now_add=True)
     numValidation = db.IntegerProperty()
-    
+
 
 def createScore(player, value, actions, numUpdates, seed, reviewers):
-    
+
     # TODO : transaction  ?
-    
-    score = Score(player=player, value=value, actions=actions, numUpdates=numUpdates, seed=seed)
+
+    score = Score(key_name=""+str(seed),player=player, value=value, actions=actions, numUpdates=numUpdates, seed=seed)
     score.put()
 
-    scoreReview = ScoreReview(parent=score, potentialReviewers=reviewers)
+    scoreReview = ScoreReview(key_name=score.key().id_or_name(),parent=score, potentialReviewers=reviewers)
     scoreReview.put();
     return score
 

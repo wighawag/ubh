@@ -2,7 +2,8 @@ import unittest
 from google.appengine.ext import testbed
 from score.model import Score
 from score import service
-from player.model import createPlayer
+from player.model import createPlayer, getPlayer
+from score.review import ScoreReview
 
 class Test(unittest.TestCase):
 
@@ -28,11 +29,15 @@ class Test(unittest.TestCase):
 
         score2 = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
         player2Id = "test2"
-        createPlayer(player2Id, player2Id, False)
-        service.reviewScore(player2Id, score2)
+        player2 = createPlayer(player2Id, player2Id, False)
+        scoreToVerify = Score.gql("WHERE player = :player", player=player).get()
+        scoreReview = ScoreReview.get_by_key_name(scoreToVerify.key().id_or_name(), scoreToVerify)
+        player2.scoreToVerify = scoreReview
+        player2.put()
+        service.reviewScore(player2Id, score2['score'])
 
-        #self.assertEqual(player.verifiedScore, score)
-        self.assertFalse(True)
+        player = getPlayer(playerId)
+        self.assertEqual(player.verifiedScore, score['score'])
 
 
 if __name__ == "__main__":

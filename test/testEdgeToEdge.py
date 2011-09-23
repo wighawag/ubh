@@ -93,7 +93,7 @@ class Test(unittest.TestCase):
 
         # loop many players :
         match = False
-        counter = 2
+        counter = 60 #2
         while not match:
             ## get a random score (seed, score, actions) and it should match at some point
 

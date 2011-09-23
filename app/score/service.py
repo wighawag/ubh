@@ -10,7 +10,7 @@ def echo(playerId, data):
 
 import random
 import datetime
-from score.model import createScore, getScoreForReviewer
+from score.model import createScore, getScoreForReviewer, Score
 from player.model import getPlayer, Player
 
 from google.appengine.ext import db
@@ -77,9 +77,15 @@ def getRandomScore(playerId):
     return {'score' : score.value, 'actions' : score.actions, 'numUpdates' : score.numUpdates, 'seed' : score.seed}
 
 
-def reviewScore(playerId, score):
-    pass
-
-
+def reviewScore(playerId, scoreValue):
+    player = _getPlayerFromId(playerId)
+    scoreReviewKey = Player.scoreToVerify.get_value_for_datastore(player)
+    scoreKey = scoreReviewKey.parent()
+    score = Score.get(scoreKey)
+    if score is not None and score.value == scoreValue:
+        score.player.verifiedScore = score.value # maybe set verifiedScore to actual score model? or delete score ? and scoreReview?
+        score.player.put()
+    else:
+        pass
 
 
