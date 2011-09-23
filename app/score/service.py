@@ -1,6 +1,7 @@
 #######################################
 ## Test purpose #######################
 #######################################
+from score.reviewconflict import ReviewConflict
 def echo(playerId, data):
     return "player " + playerId + " : " + data
 
@@ -89,10 +90,23 @@ def reviewScore(playerId, scoreValue):
     if score.value == scoreValue:
         score.player.verifiedScore = score.value # maybe set verifiedScore to actual score model? or delete score ?
         score.player.put()
-        #db.delete(scoreReviewKey)
-        #delete conflicts and set conflicting player as cheater
-        # deal with no more existing review and conflicts when reviewScore is called after getRandomScore was already called with the review being deleted (?)
+        #TODO : db.delete(scoreReviewKey)
+        #TODO : delete conflicts and set conflicting player as cheater
+        #TODO : deal with no more existing review and conflicts when reviewScore is called after getRandomScore was already called with the review being deleted (?)
     else:
-        pass # add conflict management
+        #check whether a conflict exist with the same score value, if that is the case, player has cheated
+        conflicts = ReviewConflict.gql("WHERE review=:review", review=scoreReviewKey).fetch(3) # shoud not be more than 2
+        for conflict in conflicts:
+            if conflict.scoreValue == scoreValue:
+                #player is a cheater
+                score.player.numCheat+=1
+                score.player.put()
+                #TODO : remove stuffs and assign cheater status to reviewer
+                return
+            else:
+                #TODO : deal with : if too many different we cannot really deal with them
+                pass
+        newConflict = ReviewConflict(player=player,review=scoreReviewKey,scoreValue=scoreValue)
+        newConflict.put()
 
 

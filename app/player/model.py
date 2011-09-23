@@ -8,8 +8,8 @@ class Player(db.Model):
     seed = db.IntegerProperty()
     seedDateTime = db.DateTimeProperty()
     currentScoreReviewKey = db.ReferenceProperty(ScoreReview)
-    verifiedScore = db.IntegerProperty() # should be db.BlobProperty() do deal with any kind of score/state data ?
-    numCheat = db.IntegerProperty()
+    verifiedScore = db.IntegerProperty(default=0) # should be db.BlobProperty() do deal with any kind of score/state data ?
+    numCheat = db.IntegerProperty(default=0)
     #gameFriends = db.ListProperty()
 
 def createPlayer(userId, nickname, linkOldReview = False):
