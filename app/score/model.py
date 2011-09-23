@@ -17,10 +17,10 @@ def createScore(player, value, actions, numUpdates, seed, reviewers):
 
     # TODO : transaction  ?
 
-    score = Score(key_name=""+str(seed),player=player, value=value, actions=actions, numUpdates=numUpdates, seed=seed)
+    score = Score(player=player, value=value, actions=actions, numUpdates=numUpdates, seed=seed)
     score.put()
 
-    scoreReview = ScoreReview(key_name=score.key().id_or_name(),parent=score, potentialReviewers=reviewers)
+    scoreReview = ScoreReview(key_name="uniqueChild",parent=score, potentialReviewers=reviewers)
     scoreReview.put();
     return score
 
