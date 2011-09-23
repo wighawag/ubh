@@ -87,9 +87,12 @@ def reviewScore(playerId, scoreValue):
     score = Score.get(scoreKey)
 
     if score.value == scoreValue:
-        score.player.verifiedScore = score.value # maybe set verifiedScore to actual score model? or delete score ? and scoreReview?
+        score.player.verifiedScore = score.value # maybe set verifiedScore to actual score model? or delete score ?
         score.player.put()
+        #db.delete(scoreReviewKey)
+        #delete conflicts and set conflicting player as cheater
+        # deal with no more existing review and conflicts when reviewScore is called after getRandomScore was already called with the review being deleted (?)
     else:
-        pass
+        pass # add conflict management
 
 
