@@ -28,10 +28,7 @@ class Test(unittest.TestCase):
         service.start(playerId)
         service.setScore(playerId, score)
 
-        player2Id = "test2"
-        player2 = createPlayer(player2Id, player2Id, False)
-        assignScoreReview(player2, player)
-        service.reviewScore(player2Id, 3)
+        createReviewerAndReview("test2", player, 3)
 
         player = getPlayer(playerId)
         self.assertEqual(player.verifiedScore, score['score'])
@@ -45,15 +42,9 @@ class Test(unittest.TestCase):
         service.start(playerId)
         service.setScore(playerId, score)
 
-        player2Id = "test2"
-        player2 = createPlayer(player2Id, player2Id, False)
-        assignScoreReview(player2, player)
-        service.reviewScore(player2Id, 3)
+        createReviewerAndReview("test2", player, 3)
 
-        player3Id = "test3"
-        player3 = createPlayer(player3Id, player3Id, False)
-        assignScoreReview(player3, player)
-        service.reviewScore(player3Id, 3)
+        createReviewerAndReview("test3", player, 3)
 
         player = getPlayer(playerId)
         self.assertEqual(player.verifiedScore, 2) # old verified score did not change
@@ -70,20 +61,14 @@ class Test(unittest.TestCase):
         service.start(playerId)
         service.setScore(playerId, score)
 
-        player2Id = "test2"
-        player2 = createPlayer(player2Id, player2Id, False)
-        assignScoreReview(player2, player)
-        service.reviewScore(player2Id, 99)
+        createReviewerAndReview("test2", player, 99)
 
-        player3Id = "test3"
-        player3 = createPlayer(player3Id, player3Id, False)
-        assignScoreReview(player3, player)
-        service.reviewScore(player3Id, 3)
+        createReviewerAndReview("test3", player, 3)
 
         player = getPlayer(playerId)
         self.assertEqual(player.verifiedScore, 3) # old verified score did not change
 
-        player2 = getPlayer(player2Id)
+        player2 = getPlayer("test2")
         self.assertEqual(player2.numCheat, 1)
 
 def assignScoreReview(reviewer, playerToCheck):
@@ -91,6 +76,11 @@ def assignScoreReview(reviewer, playerToCheck):
     scoreReviewKey = Key.from_path('ScoreReview','uniqueChild', parent=scoreKey)
     reviewer.currentScoreReviewKey = scoreReviewKey
     reviewer.put()
+
+def createReviewerAndReview(reviewerId, player, scoreValue):
+    reviewer = createPlayer(reviewerId, reviewerId, False)
+    assignScoreReview(reviewer, player)
+    service.reviewScore(reviewerId, scoreValue)
 
 if __name__ == "__main__":
     unittest.main()
