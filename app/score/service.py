@@ -11,7 +11,8 @@ def echo(playerId, data):
 
 import random
 import datetime
-from score.model import createScore, getScoreReviewKeyForReviewer, Score
+from score.model import createScore, getScoreReviewKeyForReviewer, Score,\
+    setScoreVerified
 from player.model import getPlayer, Player
 
 from google.appengine.ext import db
@@ -88,11 +89,10 @@ def reviewScore(playerId, scoreValue):
     score = Score.get(scoreKey)
 
     if score.value == scoreValue:
-        score.player.verifiedScore = score.value # maybe set verifiedScore to actual score model? or delete score ?
-        score.player.put()
-
+        # delete the score (unverified) and reset a verfiedscore
+        setScoreVerified(score)
         #delete conflicts and set conflicting reviewers as cheater
-        conflicts = ReviewConflict.gql("WHERE review=:review", review=scoreReviewKey).fetch(3) # shoud not be more than 2
+        conflicts = ReviewConflict.gql("WHERE review=:review", review=scoreReviewKey).fetch(5) # shoud not be more than 2
         for conflict in conflicts:
             if ReviewConflict.player.get_value_for_datastore(conflict) == player.key():
                 raise Exception("this player has been able to review two times the same score!")
@@ -112,8 +112,9 @@ def reviewScore(playerId, scoreValue):
                 raise Exception("this player has been able to review two times the same score!")
             if conflict.scoreValue == scoreValue:
                 #player is a cheater
-                score.player.numCheat+=1
-                score.player.put()
+                reviewedPlayer = score.parent()
+                reviewedPlayer.numCheat+=1
+                reviewedPlayer.put()
 
                 #remove stuffs and assign cheater status to reviewer
                 for conflict in conflicts:

@@ -3,7 +3,6 @@ from google.appengine.ext import testbed
 from score.model import Score
 from score import service
 from player.model import createPlayer, getPlayer
-from google.appengine.ext.db import GqlQuery
 from google.appengine.api.datastore_types import Key
 
 class Test(unittest.TestCase):
@@ -17,9 +16,6 @@ class Test(unittest.TestCase):
     def tearDown(self):
         self.testbed.deactivate()
 
-    def testInsertEntity(self):
-        Score().put()
-        self.assertEqual(1, len(Score.all().fetch(2)))
 
     def test_given_score_and_approvingReviewer_then_playerVerifiedScoreIsUpdated(self):
         score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
@@ -31,14 +27,14 @@ class Test(unittest.TestCase):
         createReviewerAndReview("test2", player, 3)
 
         player = getPlayer(playerId)
-        self.assertEqual(player.verifiedScore, score['score'])
+        verifiedScore = Score.get_by_key_name("verified", parent=player)
+        self.assertEqual(verifiedScore.value, score['score'])
+
 
     def test_given_score_and_twoDisapprovingButAgreeingReviewers_then_playerIsCheater_and_verfiedScoreDoNotChange(self):
         score = {'score' : 99, 'actions' : "sdsd", 'numUpdates' : 3}
         playerId = "test"
         player = createPlayer(playerId, playerId, False)
-        player.verifiedScore = 2 # old score
-        player.put()
         service.start(playerId)
         service.setScore(playerId, score)
 
@@ -47,7 +43,8 @@ class Test(unittest.TestCase):
         createReviewerAndReview("test3", player, 3)
 
         player = getPlayer(playerId)
-        self.assertEqual(player.verifiedScore, 2) # old verified score did not change
+        verifiedScore = Score.get_by_key_name("verified", parent=player)
+        self.assertTrue(verifiedScore is None or verifiedScore.value == 0)
 
         self.assertEqual(player.numCheat, 1)
 
@@ -56,8 +53,6 @@ class Test(unittest.TestCase):
         score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
         playerId = "test"
         player = createPlayer(playerId, playerId, False)
-        player.verifiedScore = 2 # old score
-        player.put()
         service.start(playerId)
         service.setScore(playerId, score)
 
@@ -66,7 +61,8 @@ class Test(unittest.TestCase):
         createReviewerAndReview("test3", player, 3)
 
         player = getPlayer(playerId)
-        self.assertEqual(player.verifiedScore, 3) # old verified score did not change
+        verifiedScore = Score.get_by_key_name("verified", parent=player)
+        self.assertEqual(verifiedScore.value, 3)
 
         player2 = getPlayer("test2")
         self.assertEqual(player2.numCheat, 1)
@@ -75,8 +71,6 @@ class Test(unittest.TestCase):
         score = {'score' : 99, 'actions' : "sdsd", 'numUpdates' : 3}
         playerId = "test"
         player = createPlayer(playerId, playerId, False)
-        player.verifiedScore = 2 # old score
-        player.put()
         service.start(playerId)
         service.setScore(playerId, score)
 
@@ -87,7 +81,9 @@ class Test(unittest.TestCase):
         createReviewerAndReview("test4", player, 3)
 
         player = getPlayer(playerId)
-        self.assertEqual(player.verifiedScore, 2) # old verified score did not change
+        verifiedScore = Score.get_by_key_name("verified", parent=player)
+
+        self.assertTrue(verifiedScore is None or verifiedScore.value == 0)
         self.assertEqual(player.numCheat, 1)
 
 
@@ -108,7 +104,8 @@ class Test(unittest.TestCase):
         createReviewerAndReview("test4", player, 3)
 
         player = getPlayer(playerId)
-        self.assertEqual(player.verifiedScore, 3)
+        verifiedScore = Score.get_by_key_name("verified", parent=player)
+        self.assertEqual(verifiedScore.value, 3)
 
         player = getPlayer("test2")
         self.assertEqual(player.numCheat, 1)
@@ -118,8 +115,9 @@ class Test(unittest.TestCase):
 
 
 def assignScoreReview(reviewer, playerToCheck):
-    scoreKey = GqlQuery("SELECT __key__ FROM Score WHERE player = :player", player=playerToCheck).get();
-    scoreReviewKey = Key.from_path('ScoreReview','uniqueChild', parent=scoreKey)
+    #scoreKey = Key.from_path('Score', 'nonVerified', parent=playerToCheck)
+    #scoreReviewKey = Key.from_path('ScoreReview','uniqueChild', parent=scoreKey)
+    scoreReviewKey = Key.from_path('Score', 'nonVerified', 'ScoreReview','uniqueChild', parent=playerToCheck.key())
     reviewer.currentScoreReviewKey = scoreReviewKey
     reviewer.put()
 

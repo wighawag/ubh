@@ -1,31 +1,42 @@
 from google.appengine.ext import db
 
-from player.model import Player
 from score.review import ScoreReview
 
 class Score(db.Model):
-    player = db.ReferenceProperty(Player)
-    value = db.IntegerProperty()
+    value = db.IntegerProperty(default=0)
     numUpdates = db.IntegerProperty()
     actions = db.BlobProperty()
     seed = db.IntegerProperty()
     dateTime = db.DateTimeProperty(auto_now_add=True)
-    numValidation = db.IntegerProperty()
 
 
 def createScore(player, value, actions, numUpdates, seed, reviewers):
-
     # TODO : transaction  ?
 
-    score = Score(player=player, value=value, actions=actions, numUpdates=numUpdates, seed=seed)
-    score.put()
+    verifiedScore = Score.get_by_key_name("verified", parent=player)
 
-    scoreReview = ScoreReview(key_name="uniqueChild",parent=score, potentialReviewers=reviewers)
+    if verifiedScore is None or value > verifiedScore.value:
+        nonVerifiedScore = Score.get_or_insert("nonVerified", parent=player)
+        if value > nonVerifiedScore.value:
+            nonVerifiedScore.value = value
+            nonVerifiedScore.actions = actions
+            nonVerifiedScore.numUpdates = numUpdates
+            nonVerifiedScore.seed = seed
+            nonVerifiedScore.put()
+
+    scoreReview = ScoreReview(key_name="uniqueChild",parent=nonVerifiedScore, potentialReviewers=reviewers)
     scoreReview.put();
-    return score
+    #return nonVerifiedScore
 
-def getScoreById(scoreId):
-    return Score.get_by_id(scoreId)
+def setScoreVerified(score):
+    verifiedScore = Score(key_name="verified", parent=score.parent(), value=score.value, actions=score.actions, numUpdates=score.numUpdates, seed=score.seed)
+    #verifiedScore = Score.get_or_insert("verified", score.parent())
+    #verifiedScore.value = score.value
+    #verifiedScore.actions = score.actions
+    #verifiedScore.numUpdates = score.numUpdates
+    #verifiedScore.seed = score.seed
+    verifiedScore.put()
+    score.delete()
 
 def getScoreReviewKeyForReviewer(playerId):
     scoreReview = db.GqlQuery("SELECT __key__ FROM ScoreReview WHERE potentialReviewers = :playerId", playerId=playerId).get()
