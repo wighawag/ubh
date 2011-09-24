@@ -100,7 +100,7 @@ def reviewScore(playerId, scoreValue):
                 conflict.player.numCheat+=1
                 conflict.player.put()
                 conflict.delete()
-        db.delete(scoreReviewKey)
+        db.delete(scoreReviewKey) #TODO : delete score ?
         player.currentScoreReviewKey = None
         player.put()
         #TODO : deal with no more existing review and conflicts when reviewScore is called after getRandomScore was already called with the review being deleted (?)
@@ -121,7 +121,7 @@ def reviewScore(playerId, scoreValue):
                         conflict.player.numCheat+=1
                         conflict.player.put()
                         conflict.delete()
-                db.delete(scoreReviewKey)
+                db.delete(scoreReviewKey) #TODO : delete score ?
                 player.currentScoreReviewKey = None
                 player.put()
                 return

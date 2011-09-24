@@ -33,7 +33,7 @@ class Test(unittest.TestCase):
         player = getPlayer(playerId)
         self.assertEqual(player.verifiedScore, score['score'])
 
-    def test_given_score_and_twoDisapprovingReviewers_then_playerIsCheater_and_verfiedScoreDoNotChange(self):
+    def test_given_score_and_twoDisapprovingButAgreeingReviewers_then_playerIsCheater_and_verfiedScoreDoNotChange(self):
         score = {'score' : 99, 'actions' : "sdsd", 'numUpdates' : 3}
         playerId = "test"
         player = createPlayer(playerId, playerId, False)
@@ -70,6 +70,52 @@ class Test(unittest.TestCase):
 
         player2 = getPlayer("test2")
         self.assertEqual(player2.numCheat, 1)
+
+    def test_given_score_and_ThreeDisapprovingReviewerOfWhichTwoAgree_then_NonAgreeingReviewerAndPLayerAreCheater(self):
+        score = {'score' : 99, 'actions' : "sdsd", 'numUpdates' : 3}
+        playerId = "test"
+        player = createPlayer(playerId, playerId, False)
+        player.verifiedScore = 2 # old score
+        player.put()
+        service.start(playerId)
+        service.setScore(playerId, score)
+
+        createReviewerAndReview("test2", player, 3)
+
+        createReviewerAndReview("test3", player, 999)
+
+        createReviewerAndReview("test4", player, 3)
+
+        player = getPlayer(playerId)
+        self.assertEqual(player.verifiedScore, 2) # old verified score did not change
+        self.assertEqual(player.numCheat, 1)
+
+
+        player = getPlayer("test3")
+        self.assertEqual(player.numCheat, 1)
+
+    def test_given_score_and_TwoDisapprovingButNonAgreeingReviewerAndOneApprovingReviewer_then_NonApprovingReviewerAreCheater_and_playerVerifiedScoreIsUpdated(self):
+        score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
+        playerId = "test"
+        player = createPlayer(playerId, playerId, False)
+        service.start(playerId)
+        service.setScore(playerId, score)
+
+        createReviewerAndReview("test2", player, 99)
+
+        createReviewerAndReview("test3", player, 999)
+
+        createReviewerAndReview("test4", player, 3)
+
+        player = getPlayer(playerId)
+        self.assertEqual(player.verifiedScore, 3)
+
+        player = getPlayer("test2")
+        self.assertEqual(player.numCheat, 1)
+
+        player = getPlayer("test3")
+        self.assertEqual(player.numCheat, 1)
+
 
 def assignScoreReview(reviewer, playerToCheck):
     scoreKey = GqlQuery("SELECT __key__ FROM Score WHERE player = :player", player=playerToCheck).get();
