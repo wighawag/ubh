@@ -28,16 +28,10 @@ class Test(unittest.TestCase):
         service.start(playerId)
         service.setScore(playerId, score)
 
-        score2 = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
         player2Id = "test2"
         player2 = createPlayer(player2Id, player2Id, False)
-
-        scoreKey = GqlQuery("SELECT __key__ FROM Score WHERE player = :player", player=player).get();
-        scoreReviewKey = Key.from_path('ScoreReview','uniqueChild', parent=scoreKey)
-        player2.currentScoreReviewKey = scoreReviewKey
-        player2.put()
-
-        service.reviewScore(player2Id, score2['score'])
+        assignScoreReview(player2, player)
+        service.reviewScore(player2Id, 3)
 
         player = getPlayer(playerId)
         self.assertEqual(player.verifiedScore, score['score'])
@@ -51,27 +45,15 @@ class Test(unittest.TestCase):
         service.start(playerId)
         service.setScore(playerId, score)
 
-        score2 = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
         player2Id = "test2"
         player2 = createPlayer(player2Id, player2Id, False)
+        assignScoreReview(player2, player)
+        service.reviewScore(player2Id, 3)
 
-        scoreKey = GqlQuery("SELECT __key__ FROM Score WHERE player = :player", player=player).get();
-        scoreReviewKey = Key.from_path('ScoreReview','uniqueChild', parent=scoreKey)
-        player2.currentScoreReviewKey = scoreReviewKey
-        player2.put()
-
-        service.reviewScore(player2Id, score2['score'])
-
-        score3 = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
-        player3Id = "test2"
+        player3Id = "test3"
         player3 = createPlayer(player3Id, player3Id, False)
-
-        scoreKey = GqlQuery("SELECT __key__ FROM Score WHERE player = :player", player=player).get();
-        scoreReviewKey = Key.from_path('ScoreReview','uniqueChild', parent=scoreKey)
-        player3.currentScoreReviewKey = scoreReviewKey
-        player3.put()
-
-        service.reviewScore(player3Id, score3['score'])
+        assignScoreReview(player3, player)
+        service.reviewScore(player3Id, 3)
 
         player = getPlayer(playerId)
         self.assertEqual(player.verifiedScore, 2) # old verified score did not change
@@ -88,33 +70,27 @@ class Test(unittest.TestCase):
         service.start(playerId)
         service.setScore(playerId, score)
 
-        score2 = {'score' : 99, 'actions' : "sdsd", 'numUpdates' : 3}
         player2Id = "test2"
         player2 = createPlayer(player2Id, player2Id, False)
+        assignScoreReview(player2, player)
+        service.reviewScore(player2Id, 99)
 
-        scoreKey = GqlQuery("SELECT __key__ FROM Score WHERE player = :player", player=player).get();
-        scoreReviewKey = Key.from_path('ScoreReview','uniqueChild', parent=scoreKey)
-        player2.currentScoreReviewKey = scoreReviewKey
-        player2.put()
-
-        service.reviewScore(player2Id, score2['score'])
-
-        score3 = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
-        player3Id = "test2"
+        player3Id = "test3"
         player3 = createPlayer(player3Id, player3Id, False)
-
-        scoreKey = GqlQuery("SELECT __key__ FROM Score WHERE player = :player", player=player).get();
-        scoreReviewKey = Key.from_path('ScoreReview','uniqueChild', parent=scoreKey)
-        player3.currentScoreReviewKey = scoreReviewKey
-        player3.put()
-
-        service.reviewScore(player3Id, score3['score'])
+        assignScoreReview(player3, player)
+        service.reviewScore(player3Id, 3)
 
         player = getPlayer(playerId)
         self.assertEqual(player.verifiedScore, 3) # old verified score did not change
 
         player2 = getPlayer(player2Id)
         self.assertEqual(player2.numCheat, 1)
+
+def assignScoreReview(reviewer, playerToCheck):
+    scoreKey = GqlQuery("SELECT __key__ FROM Score WHERE player = :player", player=playerToCheck).get();
+    scoreReviewKey = Key.from_path('ScoreReview','uniqueChild', parent=scoreKey)
+    reviewer.currentScoreReviewKey = scoreReviewKey
+    reviewer.put()
 
 if __name__ == "__main__":
     unittest.main()
