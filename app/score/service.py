@@ -92,7 +92,7 @@ def reviewScore(playerId, scoreValue):
         # delete the score (unverified) and reset a verfiedscore
         setScoreVerified(score)
         #delete conflicts and set conflicting reviewers as cheater
-        conflicts = ReviewConflict.gql("WHERE review=:review", review=scoreReviewKey).fetch(5) # shoud not be more than 2
+        conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :review", review=scoreReviewKey).fetch(5) # shoud not be more than 2
         for conflict in conflicts:
             if ReviewConflict.player.get_value_for_datastore(conflict) == player.key():
                 raise Exception("this player has been able to review two times the same score!")
@@ -106,7 +106,7 @@ def reviewScore(playerId, scoreValue):
         #TODO : deal with no more existing review and conflicts when reviewScore is called after getRandomScore was already called with the review being deleted (?)
     else:
         #check whether a conflict exist with the same score value, if that is the case, player has cheated
-        conflicts = ReviewConflict.gql("WHERE review=:review", review=scoreReviewKey).fetch(3) # shoud not be more than 2
+        conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :review", review=scoreReviewKey).fetch(5) # shoud not be more than 2
         for conflict in conflicts:
             if ReviewConflict.player.get_value_for_datastore(conflict) == player.key():
                 raise Exception("this player has been able to review two times the same score!")
@@ -129,7 +129,7 @@ def reviewScore(playerId, scoreValue):
             else:
                 #TODO : deal with : if too many different we cannot really deal with them, it should not happen though
                 pass
-        newConflict = ReviewConflict(player=player,review=scoreReviewKey,scoreValue=scoreValue)
+        newConflict = ReviewConflict(player=player,scoreValue=scoreValue, parent=scoreReviewKey)
         newConflict.put()
 
 
