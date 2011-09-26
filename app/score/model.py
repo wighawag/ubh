@@ -2,6 +2,10 @@ from google.appengine.ext import db
 
 from score.review import ScoreReview
 
+# Need to be child of a Player
+# two score per player :
+#  - "nonVerified" as key_name : might be None if no score value is verified yet
+#  - "Verified" as key_name : might be none if never submited a score. It is overriden when posting a new score (should be greater than the older one though)
 class Score(db.Model):
     value = db.IntegerProperty(default=0)
     numUpdates = db.IntegerProperty()

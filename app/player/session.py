@@ -35,10 +35,11 @@ def getPlayerSession(playerId):
         session = PlayerSession.get_by_key_name(playerId)
         if session is not None:
             protobuf = db.model_to_protobuf(session)
-            memcache.set(playerId, protobuf, DEFAULT_MAX_SESSION_LIFE_TIME.seconds, namespace=namespace)
+            memcache.set(playerId, protobuf, DEFAULT_MAX_SESSION_LIFE_TIME.seconds, namespace=namespace) # TODO : set expiry time depending of creationDateTime
             return session
     return None
 
+# key_name need to be the same as player key_name (could use parent relationship instead ?)
 class PlayerSession(db.Model):
     token = db.StringProperty(required=True)
     creationDateTime = db.DateTimeProperty(auto_now_add=True)
