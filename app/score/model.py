@@ -28,7 +28,7 @@ def createScore(player, value, actions, numUpdates, seed, reviewers):
             nonVerifiedScore.seed = seed
             nonVerifiedScore.put()
 
-    scoreReview = ScoreReview(key_name="uniqueChild",parent=nonVerifiedScore, potentialReviewers=reviewers)
+    scoreReview = ScoreReview(key_name="review",parent=nonVerifiedScore, potentialReviewers=reviewers)
     scoreReview.put();
     #return nonVerifiedScore
 
@@ -43,5 +43,7 @@ def setScoreVerified(score):
     score.delete()
 
 def getScoreReviewKeyForReviewer(playerId):
+    # get any review assigned to the player
+    # TODO : add priority to reviews (for example when cheater are identified?)
     scoreReview = db.GqlQuery("SELECT __key__ FROM ScoreReview WHERE potentialReviewers = :playerId", playerId=playerId).get()
     return scoreReview

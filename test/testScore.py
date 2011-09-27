@@ -113,6 +113,27 @@ class Test(unittest.TestCase):
         player = getPlayer("test3")
         self.assertEqual(player.numCheat, 1)
 
+    def test_given_reviewerVerifyingScore_if_playerSetNewScoreInTheMeanTime_when_reviewerSetReviewItShouldBeDiscarded(self):
+        score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
+        playerId = "test"
+        player = createPlayer(playerId, playerId, False)
+        service.start(playerId)
+        service.setScore(playerId, score)
+
+        reviewer = createPlayer("reviewer", "reviewer", False)
+        assignScoreReview(reviewer, player)
+
+        score = {'score' : 4, 'actions' : "sdsd", 'numUpdates' : 3}
+        service.start(playerId)
+        service.setScore(playerId, score)
+
+        service.reviewScore("reviewer", 4)
+
+        player = getPlayer(playerId)
+        verifiedScore = Score.get_by_key_name("verified", parent=player)
+        self.assertEqual(verifiedScore, None)
+
+
 
 def assignScoreReview(reviewer, playerToCheck):
     #scoreKey = Key.from_path('Score', 'nonVerified', parent=playerToCheck)
