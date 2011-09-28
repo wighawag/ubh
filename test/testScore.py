@@ -1,6 +1,6 @@
 import unittest
 from google.appengine.ext import testbed
-from score.model import Score
+from score.model import Score, createScore
 from score import service
 from player.model import createPlayer, getPlayer, Player
 from google.appengine.api.datastore_types import Key
@@ -20,7 +20,7 @@ class Test(unittest.TestCase):
     def test_given_score_and_approvingReviewer_then_playerVerifiedScoreIsUpdated(self):
         score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
         playerId = "test"
-        createPlayer(playerId, playerId, False)
+        createPlayer(playerId, playerId)
         service.start(playerId)
         service.setScore(playerId, score)
 
@@ -36,7 +36,7 @@ class Test(unittest.TestCase):
     def test_given_score_and_twoDisapprovingButAgreeingReviewers_then_playerIsCheater_and_verfiedScoreDoNotChange(self):
         score = {'score' : 99, 'actions' : "sdsd", 'numUpdates' : 3}
         playerId = "test"
-        createPlayer(playerId, playerId, False)
+        createPlayer(playerId, playerId)
         service.start(playerId)
         service.setScore(playerId, score)
 
@@ -56,7 +56,7 @@ class Test(unittest.TestCase):
     def test_given_score_and_oneDisapprovingAndOneApprovingReviewer_then_firstReviewerIsCheater_and_playerVerifiedScoreIsUpdated(self):
         score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
         playerId = "test"
-        createPlayer(playerId, playerId, False)
+        createPlayer(playerId, playerId)
         service.start(playerId)
         service.setScore(playerId, score)
 
@@ -76,7 +76,7 @@ class Test(unittest.TestCase):
     def test_given_score_and_ThreeDisapprovingReviewerOfWhichTwoAgree_then_NonAgreeingReviewerAndPLayerAreCheater(self):
         score = {'score' : 99, 'actions' : "sdsd", 'numUpdates' : 3}
         playerId = "test"
-        createPlayer(playerId, playerId, False)
+        createPlayer(playerId, playerId)
         service.start(playerId)
         service.setScore(playerId, score)
 
@@ -101,7 +101,7 @@ class Test(unittest.TestCase):
     def test_given_score_and_TwoDisapprovingButNonAgreeingReviewerAndOneApprovingReviewer_then_NonApprovingReviewerAreCheater_and_playerVerifiedScoreIsUpdated(self):
         score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
         playerId = "test"
-        createPlayer(playerId, playerId, False)
+        createPlayer(playerId, playerId)
         service.start(playerId)
         service.setScore(playerId, score)
 
@@ -125,16 +125,16 @@ class Test(unittest.TestCase):
     def test_given_reviewerVerifyingScore_if_playerSetNewScoreInTheMeanTime_when_reviewerSetReviewItShouldBeDiscarded(self):
         score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
         playerId = "test"
-        createPlayer(playerId, playerId, False)
+        createPlayer(playerId, playerId)
         service.start(playerId)
         service.setScore(playerId, score)
 
         player = getPlayer("test")
-        reviewer = createPlayer("reviewer", "reviewer", False)
+        reviewer = createPlayer("reviewer", "reviewer")
         assignScoreReview(reviewer, player)
 
 
-        reviewer2 = createPlayer("reviewer2", "reviewer2", False)
+        reviewer2 = createPlayer("reviewer2", "reviewer2")
         assignScoreReview(reviewer2, player)
 
         score = {'score' : 4, 'actions' : "sdsd", 'numUpdates' : 3}
@@ -148,13 +148,26 @@ class Test(unittest.TestCase):
         verifiedScore = Score.get_by_key_name("verified", parent=player)
         self.assertEqual(verifiedScore, None)
 
-    def test_newPlayerWithoutFriends_shouldGetVeryOldReviews(self):
+    def test_newPlayerWithoutReviewAssigned_shouldGetNoReviews(self):
         playerId = "test"
-        createPlayer(playerId, playerId, False)# False means to not assign old reviews
+        createPlayer(playerId, playerId)
 
         player = getPlayer(playerId)
-        oldReview = None
-        self.assertEqual(player.currentScoreReviewKey, oldReview)
+        self.assertEqual(player.currentScoreReviewKey, None)
+
+    def test_newPlayerWithReviewAssigned_shouldGetReviewsAsOldAsRequested(self):
+
+        for i in range(0,41):
+            player = createPlayer("playerTest" + str(i), "playerTest" + str(i))
+            score = createScore(player, 3, "", 3, player.seed, [])
+            if i == 10:
+                oldReviewKey = Key.from_path('ScoreReview','review', parent=score.key())
+
+        playerId = "test"
+        createPlayer(playerId, playerId, 30)
+
+        player = getPlayer(playerId)
+        self.assertEqual(Player.currentScoreReviewKey.get_value_for_datastore(player), oldReviewKey)
 
 
 def assignScoreReview(reviewer, playerToCheck):
@@ -166,7 +179,7 @@ def assignScoreReview(reviewer, playerToCheck):
     reviewer.put()
 
 def createReviewerAndReview(reviewerId, player, scoreValue):
-    reviewer = createPlayer(reviewerId, reviewerId, False)
+    reviewer = createPlayer(reviewerId, reviewerId)
     assignScoreReview(reviewer, player)
     service.reviewScore(reviewerId, scoreValue)
 

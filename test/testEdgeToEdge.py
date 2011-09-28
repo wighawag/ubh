@@ -70,23 +70,6 @@ class Test(unittest.TestCase):
                          and 'seed' in answer and seed == answer['seed']
                          )
 
-# TODO : REMOVE THIS TEST
-#    def test_userSetScoreOtherRetrieveIt(self):
-#
-#        seed = self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
-#
-#        score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
-#
-#        self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.setScore", score)
-#
-#        answer = self.executeGoogleUserSecureService("player2@mail.com", "player2", "score.service.getRandomScore")
-#
-#        self.assertEqual(score['score'], answer['score'])
-#        self.assertEqual(score['actions'], answer['actions'])
-#        self.assertEqual(score['numUpdates'], answer['numUpdates'])
-#        self.assertEqual(seed, answer['seed'])
-
-
     def test_userSetScoreOtherRetrieveItAfterManyPlayerPlayed(self):
         self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
         score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
@@ -94,23 +77,23 @@ class Test(unittest.TestCase):
 
         # loop many players :
         match = False
-        counter = 60 #2
+        counter = 2
         while not match:
             ## get a random score (seed, score, actions) and it should match at some point
-
-            # TODO add start and setScore
-            self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.start")
-            checkerScore = {'score' : 10, 'actions' : "sdsdsdsdsd", 'numUpdates' : 5}
-            self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.setScore", checkerScore)
 
             answer = self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.getRandomScore")
             if answer != {}:
                 match = (answer['score'] == score['score'] and answer['actions'] == score['actions'] and answer['numUpdates'] == score['numUpdates'])
+
+            self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.start")
+            checkerScore = {'score' : 10, 'actions' : "sdsdsdsdsd" +str(counter), 'numUpdates' : 5}
+            self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.setScore", checkerScore)
+
             counter += 1
-            if (counter > 60):
+            if (counter > 90):
                 break
 
-        self.assertTrue(40 < counter < 60)
+        self.assertTrue(75 < counter < 85)
 
 
 

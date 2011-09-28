@@ -13,12 +13,12 @@ class Player(db.Model):
     nonVerifiedScore = db.ReferenceProperty(Score)
     #gameFriends = db.ListProperty()
 
-def createPlayer(userId, nickname, linkOldReview = False):
+def createPlayer(userId, nickname, oldReviewNum = 0):
     player = Player(key_name=userId, nickname=nickname)
 
-    if linkOldReview:
+    if oldReviewNum:
         # will work since the player has never played before (he will not get his own score)
-        scoreReviewKey = getOldScoreReviewKey()
+        scoreReviewKey = getOldScoreReviewKey(oldReviewNum)
         if scoreReviewKey is not None:
             player.currentScoreReviewKey = scoreReviewKey
 

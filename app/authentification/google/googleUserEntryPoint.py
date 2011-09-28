@@ -32,7 +32,7 @@ class MainPage(webapp.RequestHandler):
         if googleUser is not None:
             playerId = googleUser.playerId
         else:
-            player = createPlayer('googleUser_' + userId, "nickName" + userId)
+            player = createPlayer('googleUser_' + userId, "nickName" + userId, 80)
             playerId = player.key().id_or_name()
             googleUser = GoogleUser(key_name=userId, playerId=playerId)
             googleUser.put();
