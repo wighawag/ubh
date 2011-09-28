@@ -103,7 +103,12 @@ def reviewScore(playerId, scoreValue):
         return
     scoreKey = scoreReviewKey.parent()
     score = Score.get(scoreKey)
-    # TODO : if score is None (and we implemented score as reference stored in Player it probably means score has changed in the mean time (approved for example)
+
+    # if score is None (and we implemented score as reference stored in Player it probably means score has changed in the mean time (approved for example)
+    if score is None:
+        # too late
+        player.currentScoreReviewKey = None
+        return;
 
     if score.value == scoreValue:
         # delete the score (unverified) and reset a verfiedscore

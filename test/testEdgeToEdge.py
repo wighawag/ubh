@@ -9,6 +9,7 @@ from helper.googleUser import setCurrentUser, logoutCurrentUser
 
 from helper.amf import executeService, getMessageFromResponse, isResponseBad
 from helper.html import getFlashVarsFromResponse
+from player.model import getPlayer
 
 #from pyamf.amf3 import ByteArray
 
@@ -87,7 +88,7 @@ class Test(unittest.TestCase):
 
 
     def test_userSetScoreOtherRetrieveItAfterManyPlayerPlayed(self):
-        seed = self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
+        self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
         score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
         self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.setScore", score)
 
@@ -98,7 +99,7 @@ class Test(unittest.TestCase):
             ## get a random score (seed, score, actions) and it should match at some point
 
             # TODO add start and setScore
-            seed = self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.start")
+            self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.start")
             checkerScore = {'score' : 10, 'actions' : "sdsdsdsdsd", 'numUpdates' : 5}
             self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.setScore", checkerScore)
 
@@ -110,6 +111,8 @@ class Test(unittest.TestCase):
                 break
 
         self.assertTrue(40 < counter < 60)
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 from google.appengine.ext import db
 
 from score.review import ScoreReview, getOldScoreReviewKey
+from score.model import Score
 
 class Player(db.Model):
     nickname = db.StringProperty(required=True)
@@ -9,6 +10,7 @@ class Player(db.Model):
     seedDateTime = db.DateTimeProperty()
     currentScoreReviewKey = db.ReferenceProperty(ScoreReview)
     numCheat = db.IntegerProperty(default=0)
+    nonVerifiedScore = db.ReferenceProperty(Score)
     #gameFriends = db.ListProperty()
 
 def createPlayer(userId, nickname, linkOldReview = False):

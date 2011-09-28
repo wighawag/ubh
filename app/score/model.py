@@ -4,8 +4,8 @@ from score.review import ScoreReview
 
 # Need to be child of a Player
 # two score per player :
-#  - "nonVerified" as key_name : might be None if no score value is verified yet
-#  - "Verified" as key_name : might be none if never submited a score. It is overriden when posting a new score (should be greater than the older one though)
+#  - a nonVerified score which is store as a reference in Player.nonVerifiedScore  (might be None if no score has been submited)
+#  - a verified score whose key never change it has "verified" as key_name : might be None if no score has been verified. Its values are overriden when a score is verfied
 class Score(db.Model):
     value = db.IntegerProperty(default=0)
     numUpdates = db.IntegerProperty()
@@ -20,17 +20,19 @@ def createScore(player, value, actions, numUpdates, seed, reviewers):
     verifiedScore = Score.get_by_key_name("verified", parent=player)
 
     if verifiedScore is None or value > verifiedScore.value:
-        nonVerifiedScore = Score.get_or_insert("nonVerified", parent=player)
-        if value > nonVerifiedScore.value:
-            nonVerifiedScore.value = value
-            nonVerifiedScore.actions = actions
-            nonVerifiedScore.numUpdates = numUpdates
-            nonVerifiedScore.seed = seed
+        nonVerifiedScore = player.nonVerifiedScore
+        if nonVerifiedScore is None or value > nonVerifiedScore.value:
+            nonVerifiedScore = Score(value=value,actions=actions,numUpdates=numUpdates,seed=seed, parent=player)
             nonVerifiedScore.put()
+            if player.nonVerifiedScore is not None:
+                player.nonVerifiedScore.delete()
+            player.nonVerifiedScore = nonVerifiedScore
+            player.put()
 
-    scoreReview = ScoreReview(key_name="review",parent=nonVerifiedScore, potentialReviewers=reviewers)
-    scoreReview.put();
-    #return nonVerifiedScore
+            scoreReview = ScoreReview(key_name="review",parent=nonVerifiedScore, potentialReviewers=reviewers)
+            scoreReview.put();
+            return nonVerifiedScore
+    return None
 
 def setScoreVerified(score):
     verifiedScore = Score(key_name="verified", parent=score.parent(), value=score.value, actions=score.actions, numUpdates=score.numUpdates, seed=score.seed)
