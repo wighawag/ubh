@@ -148,12 +148,11 @@ class Test(unittest.TestCase):
         verifiedScore = Score.get_by_key_name("verified", parent=player)
         self.assertEqual(verifiedScore, None)
 
-     def test_newPlayerWithoutFriends_shouldGetVeryOldReviews(self):
-        score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
+    def test_newPlayerWithoutFriends_shouldGetVeryOldReviews(self):
         playerId = "test"
         createPlayer(playerId, playerId, False)# False means to not assign old reviews
 
-        player = getPlayer("test")
+        player = getPlayer(playerId)
         oldReview = None
         self.assertEqual(player.currentScoreReviewKey, oldReview)
 
