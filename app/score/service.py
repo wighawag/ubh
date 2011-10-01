@@ -135,13 +135,25 @@ def reviewScore(playerId, scoreValue):
 
     scoreKey = scoreReviewKey.parent()
 
-    #START TRANSACTION?
+    cheaters = db.run_in_transaction(_checkConflicts, scoreKey, scoreValue, scoreReviewKey, player.key())
+
+    def cheaterUpdate(cheaterKey):
+        cheater = db.get(cheaterKey)
+        cheater.numCheat+=1
+        cheater.put()
+
+    for cheaterKey in cheaters:
+        db.run_in_transaction(cheaterUpdate,cheaterKey)
+
+
+
+def _checkConflicts(scoreKey, scoreValue, scoreReviewKey, playerKey):
     score = Score.get(scoreKey)
 
     # if score is None (and we implemented score as reference stored in Player it probably means score has changed in the mean time (approved for example)
     if score is None:
         # too late
-        return;
+        return [];
 
     cheaters = []
     conflictResolved = False
@@ -156,7 +168,7 @@ def reviewScore(playerId, scoreValue):
         #delete conflicts and set conflicting reviewers as cheater
         conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :review", review=scoreReviewKey).fetch(5) # shoud not be more than 2
         for conflict in conflicts:
-            if ReviewConflict.player.get_value_for_datastore(conflict) == player.key():
+            if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey:
                 raise Exception("this player has been able to review two times the same score!")
             if conflict.scoreValue != scoreValue:
                 cheaters.append(ReviewConflict.player.get_value_for_datastore(conflict))
@@ -168,7 +180,7 @@ def reviewScore(playerId, scoreValue):
         #check whether a conflict exist with the same score value, if that is the case, player has cheated
         conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :review", review=scoreReviewKey).fetch(5) # should not be more than 2
         for conflict in conflicts:
-            if ReviewConflict.player.get_value_for_datastore(conflict) == player.key():
+            if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey:
                 raise Exception("this player has been able to review two times the same score!") # TODO : set reviewer as cheater (but this should not happen)
             if conflict.scoreValue == scoreValue:
                 #player is a cheater
@@ -188,15 +200,9 @@ def reviewScore(playerId, scoreValue):
                 #TODO : deal with : if too many different we cannot really deal with them, it should not happen though
                 pass
         if not conflictResolved:
-            newConflict = ReviewConflict(player=player,scoreValue=scoreValue, parent=scoreReviewKey)
+            newConflict = ReviewConflict(player=playerKey,scoreValue=scoreValue, parent=scoreReviewKey)
             newConflict.put()
 
         # TODO : remove reviewer from ScoreReview.potentialReviewers ( costly but necessary ? need to do that only if the ScoreReview need to be kept (conflict present)
 
-    # END TRANSACTION
-
-
-    for cheaterKey in cheaters:
-        cheater = db.get(cheaterKey)
-        cheater.numCheat+=1
-        cheater.put()
+    return cheaters
