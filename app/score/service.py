@@ -75,6 +75,8 @@ def setScore(playerId, score):
     actions = score['actions']
     numUpdates = score['numUpdates']
     seed = player.seed
+
+
     verifiedScore = Score.get_by_key_name("verified", parent=player)
 
     if verifiedScore is None or value > verifiedScore.value:
@@ -125,15 +127,24 @@ def reviewScore(playerId, scoreValue):
     if scoreReviewKey is None:
         # TODO :nothing to review (should throw Exception) and potentially consider the player as cheater
         return
+
+    # We are done with it
+    player.currentScoreReviewKey = None
+    player.put()
+
+
     scoreKey = scoreReviewKey.parent()
+
+    #START TRANSACTION?
     score = Score.get(scoreKey)
 
     # if score is None (and we implemented score as reference stored in Player it probably means score has changed in the mean time (approved for example)
     if score is None:
         # too late
-        player.currentScoreReviewKey = None
         return;
 
+    cheaters = []
+    conflictResolved = False
     if score.value == scoreValue:
         # delete the score (unverified) and reset a verfiedscore
         reviewedPlayer = score.parent()
@@ -148,12 +159,10 @@ def reviewScore(playerId, scoreValue):
             if ReviewConflict.player.get_value_for_datastore(conflict) == player.key():
                 raise Exception("this player has been able to review two times the same score!")
             if conflict.scoreValue != scoreValue:
-                conflict.player.numCheat+=1
-                conflict.player.put()
+                cheaters.append(ReviewConflict.player.get_value_for_datastore(conflict))
                 conflict.delete()
         db.delete(scoreReviewKey)
-        player.currentScoreReviewKey = None
-        player.put()
+        conflictResolved = True
         #TODO : deal with no more existing review and conflicts when reviewScore is called after getRandomScore was already called with the review being deleted (?)
     else:
         #check whether a conflict exist with the same score value, if that is the case, player has cheated
@@ -170,17 +179,24 @@ def reviewScore(playerId, scoreValue):
                 #remove stuffs and assign cheater status to reviewer
                 for conflict in conflicts:
                     if conflict.scoreValue != scoreValue:
-                        conflict.player.numCheat+=1
-                        conflict.player.put()
+                        cheaters.append(ReviewConflict.player.get_value_for_datastore(conflict))
                         conflict.delete()
                 db.delete(scoreReviewKey)
-                player.currentScoreReviewKey = None # TODO : check : does deleting entity set references to None ?
-                player.put()
-                return
+                conflictResolved = True
+                break
             else:
                 #TODO : deal with : if too many different we cannot really deal with them, it should not happen though
                 pass
-        newConflict = ReviewConflict(player=player,scoreValue=scoreValue, parent=scoreReviewKey)
-        newConflict.put()
+        if not conflictResolved:
+            newConflict = ReviewConflict(player=player,scoreValue=scoreValue, parent=scoreReviewKey)
+            newConflict.put()
+
         # TODO : remove reviewer from ScoreReview.potentialReviewers ( costly but necessary ? need to do that only if the ScoreReview need to be kept (conflict present)
 
+    # END TRANSACTION
+
+
+    for cheaterKey in cheaters:
+        cheater = db.get(cheaterKey)
+        cheater.numCheat+=1
+        cheater.put()
