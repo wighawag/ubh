@@ -1,6 +1,7 @@
 #######################################
 ## Test purpose #######################
 #######################################
+from score.review import ScoreReview
 def echo(playerId, data):
     return "player " + playerId + " : " + data
 
@@ -10,8 +11,7 @@ def echo(playerId, data):
 
 import random
 import datetime
-from score.model import createScore, getScoreReviewKeyForReviewer, Score,\
-    setScoreVerified
+from score.model import Score
 from player.model import getPlayer, Player
 
 from google.appengine.ext import db
@@ -70,7 +70,31 @@ def setScore(playerId, score):
     # new players should be anti-prioritised (might be not necessary if other stuff are done)
     reviewers = []
 
-    createScore(player, score['score'], score['actions'], score['numUpdates'], player.seed, reviewers)
+    # TODO : transaction  ?
+    value = score['score']
+    actions = score['actions']
+    numUpdates = score['numUpdates']
+    seed = player.seed
+    verifiedScore = Score.get_by_key_name("verified", parent=player)
+
+    if verifiedScore is None or value > verifiedScore.value:
+        nonVerifiedScore = player.nonVerifiedScore
+        if nonVerifiedScore is None or value > nonVerifiedScore.value:
+            nonVerifiedScore = Score(value=value,actions=actions,numUpdates=numUpdates,seed=seed, parent=player)
+            nonVerifiedScore.put()
+            if player.nonVerifiedScore is not None:
+                player.nonVerifiedScore.delete()
+            player.nonVerifiedScore = nonVerifiedScore
+            player.put()
+
+            scoreReview = ScoreReview(key_name="review",parent=nonVerifiedScore, potentialReviewers=reviewers)
+            scoreReview.put();
+            return nonVerifiedScore
+        else:
+            pass # TODO : are you trying to cheat?
+    else:
+        pass # TODO : are you trying to cheat?
+    return None
 
     player.seed = None
     player.seedDate = None
@@ -84,7 +108,7 @@ def getRandomScore(playerId):
 
     if scoreReviewKey is None:
         # TODO : if player is considered cheater, should we give him/her some reviews?
-        scoreReviewKey = getScoreReviewKeyForReviewer(playerId)
+        scoreReviewKey = db.GqlQuery("SELECT __key__ FROM ScoreReview WHERE potentialReviewers = :playerId", playerId=playerId).get()
         if scoreReviewKey is None:
             return {}
         player.currentScoreReviewKey = scoreReviewKey
@@ -112,7 +136,12 @@ def reviewScore(playerId, scoreValue):
 
     if score.value == scoreValue:
         # delete the score (unverified) and reset a verfiedscore
-        setScoreVerified(score)
+        reviewedPlayer = score.parent()
+        verifiedScore = Score(key_name="verified", parent=reviewedPlayer, value=score.value, actions=score.actions, numUpdates=score.numUpdates, seed=score.seed)
+        verifiedScore.put()
+        score.delete()
+        reviewedPlayer.nonVerifiedScore = None
+        reviewedPlayer.put()
         #delete conflicts and set conflicting reviewers as cheater
         conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :review", review=scoreReviewKey).fetch(5) # shoud not be more than 2
         for conflict in conflicts:

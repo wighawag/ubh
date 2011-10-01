@@ -1,6 +1,6 @@
 import unittest
-from google.appengine.ext import testbed
-from score.model import Score, createScore
+from google.appengine.ext import testbed, db
+from score.model import Score
 from score import service
 from player.model import createPlayer, getPlayer, Player
 from google.appengine.api.datastore_types import Key
@@ -135,7 +135,7 @@ class Test(unittest.TestCase):
 
 
         reviewer2 = createPlayer("reviewer2", "reviewer2")
-        assignScoreReview(reviewer2, player)
+        scoreReviewKey = assignScoreReview(reviewer2, player)
 
         score = {'score' : 4, 'actions' : "sdsd", 'numUpdates' : 3}
         service.start(playerId)
@@ -148,6 +148,11 @@ class Test(unittest.TestCase):
         verifiedScore = Score.get_by_key_name("verified", parent=player)
         self.assertEqual(verifiedScore, None)
 
+        # TDO : move to another test?
+        scoreToReview = db.get(scoreReviewKey.parent())
+        self.assertEqual(scoreToReview, None)
+
+
     def test_newPlayerWithoutReviewAssigned_shouldGetNoReviews(self):
         playerId = "test"
         createPlayer(playerId, playerId)
@@ -158,9 +163,13 @@ class Test(unittest.TestCase):
     def test_newPlayerWithReviewAssigned_shouldGetReviewsAsOldAsRequested(self):
 
         for i in range(0,41):
-            player = createPlayer("playerTest" + str(i), "playerTest" + str(i))
-            score = createScore(player, 3, "", 3, player.seed, [])
-            if i == 10:
+            playerId = "playerTest" + str(i)
+            createPlayer(playerId, playerId)
+            service.start(playerId)
+            service.setScore(playerId, {'score' : 4, 'actions' : "sdsd", 'numUpdates' : 3})
+            player = getPlayer(playerId)
+            score = player.nonVerifiedScore
+            if i == 10: # will be the 30th reviews
                 oldReviewKey = Key.from_path('ScoreReview','review', parent=score.key())
 
         playerId = "test"
@@ -177,11 +186,13 @@ def assignScoreReview(reviewer, playerToCheck):
     scoreReviewKey = Key.from_path('ScoreReview','review', parent=scoreKey)
     reviewer.currentScoreReviewKey = scoreReviewKey
     reviewer.put()
+    return scoreReviewKey
 
 def createReviewerAndReview(reviewerId, player, scoreValue):
     reviewer = createPlayer(reviewerId, reviewerId)
-    assignScoreReview(reviewer, player)
+    scoreReviewKey = assignScoreReview(reviewer, player)
     service.reviewScore(reviewerId, scoreValue)
+    return scoreReviewKey
 
 if __name__ == "__main__":
     unittest.main()
