@@ -39,6 +39,7 @@ def start(playerId):
         return playSession.seed
 
     return db.run_in_transaction(_start) # Should not be needed since start and setScore should never be called at the same time an they are the only one who modify playSession
+    # TODO : if fails tell the client to retry
 
 def setScore(playerId, score):
 
@@ -53,7 +54,6 @@ def setScore(playerId, score):
 
     seed = playSession.seed
     seedDateTime = playSession.seedDateTime
-    playSession.delete()
 
 
     # RENABLE THIS CHECKS + ALLOW TESTS TO DEAL WITH TIME
@@ -85,35 +85,38 @@ def setScore(playerId, score):
 
     # TODO : transaction  ?
 
+    def _setScore():
+        playSession.delete()
+        verifiedScore = Score.get_by_key_name("verified", parent=playerKey)
 
-    verifiedScore = Score.get_by_key_name("verified", parent=playerKey)
+        if verifiedScore is None or value > verifiedScore.value:
+            pendingScore = PendingScore.get_by_key_name("pendingScore", parent=playerKey)
+            if pendingScore is not None:
+                nonVerifiedScore = pendingScore.nonVerified
+            else:
+                nonVerifiedScore = None
 
-    if verifiedScore is None or value > verifiedScore.value:
-        pendingScore = PendingScore.get_by_key_name("pendingScore", parent=playerKey)
-        if pendingScore is not None:
-            nonVerifiedScore = pendingScore.nonVerified
-        else:
-            nonVerifiedScore = None
+            if nonVerifiedScore is None or value > nonVerifiedScore.value:
+                nonVerifiedScore = Score(value=value,actions=actions,numUpdates=numUpdates,seed=seed, parent=playerKey)
+                nonVerifiedScore.put()
+                if pendingScore is None:
+                    pendingScore = PendingScore(key_name='pendingScore', parent=playerKey)
+                if pendingScore.nonVerified is not None:
+                    pendingScore.nonVerified.delete() # TODO : delete reviews and conflicts as well!
+                pendingScore.nonVerified = nonVerifiedScore
+                pendingScore.put() # TODO : transaction and/or isolation : player might have been changed in the mean time
 
-        if nonVerifiedScore is None or value > nonVerifiedScore.value:
-            nonVerifiedScore = Score(value=value,actions=actions,numUpdates=numUpdates,seed=seed, parent=playerKey)
-            nonVerifiedScore.put()
-            if pendingScore is None:
-                pendingScore = PendingScore(key_name='pendingScore', parent=playerKey)
-            if pendingScore.nonVerified is not None:
-                pendingScore.nonVerified.delete() # TODO : delete reviews and conflicts as well!
-            pendingScore.nonVerified = nonVerifiedScore
-            pendingScore.put() # TODO : transaction and/or isolation : player might have been changed in the mean time
-
-            scoreReview = ScoreReview(key_name="review", potentialReviewers=reviewers, parent=nonVerifiedScore)
-            scoreReview.put();
-            return nonVerifiedScore
+                scoreReview = ScoreReview(key_name="review", potentialReviewers=reviewers, parent=nonVerifiedScore)
+                scoreReview.put();
+                return nonVerifiedScore
+            else:
+                pass # TODO : are you trying to cheat?
         else:
             pass # TODO : are you trying to cheat?
-    else:
-        pass # TODO : are you trying to cheat?
 
-    return None
+        return None
+
+    return db.run_in_transaction(_setScore) # TODO : if fails tell the client to retry
 
 
 def getRandomScore(playerId):
@@ -159,7 +162,7 @@ def reviewScore(playerId, scoreValue):
 
     scoreKey = scoreReviewKey.parent()
 
-    cheaters = db.run_in_transaction(_checkConflicts, scoreKey, scoreValue, scoreReviewKey, playerKey)
+    cheaters = db.run_in_transaction(_checkConflicts, scoreKey, scoreValue, scoreReviewKey, playerKey) # TODO : if fails tell the client to retry
 
     if cheaters:
         def cheaterUpdate(cheaterKey):
