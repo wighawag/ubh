@@ -12,7 +12,7 @@ def echo(playerId, data):
 import random
 import datetime
 from score.model import Score
-from player.model import getPlayer, Player
+from player.model import Player
 
 from google.appengine.ext import db
 
@@ -24,25 +24,26 @@ UPDATE_DELTA_MILISECOND = 31 # update rate on flash player
 PAUSE_MULTIPLIER = 1.5 # quantity of pause allowed
 MINIMUM_TIME = 10 # margin in seconds to send the data across
 
-def _getPlayerFromId(playerId):
-    player = getPlayer(playerId)
-    if player is None:
-        raise Exception('Player %s could not be fetched' % playerId)
-    return player
 
 def start(playerId):
     # TODO : investigate what if user wait for a particular seed (that it trained with)
     # solution : start should be followed by setScore most of the time and for low score, the seed is not regenerated (or loop through a finite set of seed) within the time limit required to have significant highscore?
     # TODO : investigate what if user wait for a seed that has already a high score from another player?
     # solution :: block highest score seeds
-    player = _getPlayerFromId(playerId)
+    player = Player.get_by_key_name(playerId)
+    if player is None:
+        raise Exception('Player %s could not be fetched' % playerId)
+
     player.seed = random.randint(1, MAX_AS3_UINT_VALUE)
     player.seedDateTime = datetime.datetime.now()
-    player.put()
+    player.put() # TODO : transaction and/or isolation : player might have been changed in the mean time
     return player.seed
 
 def setScore(playerId, score):
-    player = _getPlayerFromId(playerId)
+    player = Player.get_by_key_name(playerId)
+    if player is None:
+        raise Exception('Player %s could not be fetched' % playerId)
+
     if player.seed is None:
         raise Exception("Seed not set while trying to set a new score. start need to be called before setScore")
 
@@ -76,6 +77,8 @@ def setScore(playerId, score):
     numUpdates = score['numUpdates']
     seed = player.seed
 
+    player.seed = None
+    player.seedDate = None
 
     verifiedScore = Score.get_by_key_name("verified", parent=player)
 
@@ -87,7 +90,7 @@ def setScore(playerId, score):
             if player.nonVerifiedScore is not None:
                 player.nonVerifiedScore.delete()
             player.nonVerifiedScore = nonVerifiedScore
-            player.put()
+            player.put() # TODO : transaction and/or isolation : player might have been changed in the mean time
 
             scoreReview = ScoreReview(key_name="review",parent=nonVerifiedScore, potentialReviewers=reviewers)
             scoreReview.put();
@@ -96,54 +99,65 @@ def setScore(playerId, score):
             pass # TODO : are you trying to cheat?
     else:
         pass # TODO : are you trying to cheat?
-    return None
 
-    player.seed = None
-    player.seedDate = None
-    player.put()
+    player.put() # TODO : transaction and/or isolation : player might have been changed in the mean time
+    return None
 
 
 def getRandomScore(playerId):
-    player = _getPlayerFromId(playerId)
+    player = Player.get_by_key_name(playerId)
+    if player is None:
+        raise Exception('Player %s could not be fetched' % playerId)
+
+    if player.numCheat > 0:
+        # this could happen even if reviewer has been  assigned a review since at that time it was maybe not considered a cheater
+        return {} # TODO : if player is considered cheater, should we give him/her some reviews?
 
     scoreReviewKey = Player.currentScoreReviewKey.get_value_for_datastore(player)
 
     if scoreReviewKey is None:
-        # TODO : if player is considered cheater, should we give him/her some reviews?
         scoreReviewKey = db.GqlQuery("SELECT __key__ FROM ScoreReview WHERE potentialReviewers = :playerId", playerId=playerId).get()
         if scoreReviewKey is None:
             return {}
-        player.currentScoreReviewKey = scoreReviewKey
+        player.currentScoreReviewKey = scoreReviewKey # TODO : transaction and/or isolation : player might have been changed in the mean time
         player.put()
 
     score = db.get(scoreReviewKey.parent())
+    # in case score has been approved just now, it could have been removed
+    if score is not None:
+        return {'score' : score.value, 'actions' : score.actions, 'numUpdates' : score.numUpdates, 'seed' : score.seed}
 
-    return {'score' : score.value, 'actions' : score.actions, 'numUpdates' : score.numUpdates, 'seed' : score.seed}
-
+    return {}
 
 def reviewScore(playerId, scoreValue):
-    player = _getPlayerFromId(playerId)
+    player = Player.get_by_key_name(playerId)
+    if player is None:
+        raise Exception('Player %s could not be fetched' % playerId)
+
     scoreReviewKey = Player.currentScoreReviewKey.get_value_for_datastore(player)
     if scoreReviewKey is None:
         # TODO :nothing to review (should throw Exception) and potentially consider the player as cheater
         return
 
     # We are done with it
-    player.currentScoreReviewKey = None
+    player.currentScoreReviewKey = None # TODO : transaction and/or isolation : player might have been changed in the mean time
     player.put()
+
+    # The above could have potentially be put in a transaction but since there is only one player concerned, it should not matter
 
 
     scoreKey = scoreReviewKey.parent()
 
     cheaters = db.run_in_transaction(_checkConflicts, scoreKey, scoreValue, scoreReviewKey, player.key())
 
-    def cheaterUpdate(cheaterKey):
-        cheater = db.get(cheaterKey)
-        cheater.numCheat+=1
-        cheater.put()
+    if cheaters:
+        def cheaterUpdate(cheaterKey):
+            cheater = db.get(cheaterKey)
+            cheater.numCheat+=1
+            cheater.put()
 
-    for cheaterKey in cheaters:
-        db.run_in_transaction(cheaterUpdate,cheaterKey)
+        for cheaterKey in cheaters:
+            db.run_in_transaction(cheaterUpdate,cheaterKey)
 
 
 

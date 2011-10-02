@@ -178,6 +178,19 @@ class Test(unittest.TestCase):
         player = getPlayer(playerId)
         self.assertEqual(Player.currentScoreReviewKey.get_value_for_datastore(player), oldReviewKey)
 
+    # TODO : assign review on score creation
+    def test_given_aCheaterPlayer_ItShouldNotBeAssignedAnyReview(self):
+
+        playerId = "test"
+        player =createPlayer(playerId, playerId, 30)
+
+        # set the player as cheater
+        player.numCheat = 1
+        player.put()
+
+
+        player = getPlayer(playerId)
+        self.assertEqual(Player.currentScoreReviewKey.get_value_for_datastore(player), None)
 
 def assignScoreReview(reviewer, playerToCheck):
     #scoreKey = Key.from_path('Score', 'nonVerified', parent=playerToCheck)
