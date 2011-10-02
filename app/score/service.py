@@ -34,9 +34,7 @@ def start(playerId):
         # TODO : investigate what if user wait for a seed that has already a high score from another player?
         # solution :: block highest score seeds
 
-        playSession = PlaySession.get_by_key_name('playSession', parent=Key.from_path('Player', playerId))
-        playSession.seed = random.randint(1, MAX_AS3_UINT_VALUE)
-        playSession.seedDateTime = datetime.datetime.now()
+        playSession = PlaySession(key_name='playSession', seed=random.randint(1, MAX_AS3_UINT_VALUE), seedDateTime=datetime.datetime.now(), parent=Key.from_path('Player', playerId))
         playSession.put() # TODO : transaction and/or isolation : player might have been changed in the mean time
         return playSession.seed
 
@@ -47,10 +45,16 @@ def setScore(playerId, score):
     playerKey = Key.from_path('Player', playerId)
 
     playSession = PlaySession.get_by_key_name('playSession', parent=playerKey)
+    if playSession is None:
+        raise Exception("No play session started. start need to be called before setScore") # TODO not make it throw an exception and maybe set the player as cheater (possibly lower cheater)
+
     if playSession.seed is None:
-        raise Exception("Seed not set while trying to set a new score. start need to be called before setScore")
+        raise Exception("Seed not set while trying to set a new score. should not have happened!")
 
     seed = playSession.seed
+    seedDateTime = playSession.seedDateTime
+    playSession.delete()
+
 
     # RENABLE THIS CHECKS + ALLOW TESTS TO DEAL WITH TIME
 
@@ -63,11 +67,6 @@ def setScore(playerId, score):
     #    raise Exception("player has spend too much time to play such score")
 
     # TODO : investigate: should we consider the player as cheater for this two exception above ?
-
-
-    playSession.seed = None
-    playSession.seedDate = None
-    playSession.put()
 
 
     value = score['score']
@@ -106,7 +105,7 @@ def setScore(playerId, score):
             pendingScore.nonVerified = nonVerifiedScore
             pendingScore.put() # TODO : transaction and/or isolation : player might have been changed in the mean time
 
-            scoreReview = ScoreReview(key_name="review",parent=nonVerifiedScore, potentialReviewers=reviewers)
+            scoreReview = ScoreReview(key_name="review", potentialReviewers=reviewers, parent=nonVerifiedScore)
             scoreReview.put();
             return nonVerifiedScore
         else:
@@ -128,14 +127,14 @@ def getRandomScore(playerId):
 
 
     reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
-    scoreReviewKey = ReviewSession.currentScoreReviewKey.get_value_for_datastore(reviewSession)
-
-    if scoreReviewKey is None:
+    if reviewSession is None:
         scoreReviewKey = db.GqlQuery("SELECT __key__ FROM ScoreReview WHERE potentialReviewers = :playerId", playerId=playerId).get()
         if scoreReviewKey is None:
             return {}
-        reviewSession.currentScoreReviewKey = scoreReviewKey # TODO : transaction and/or isolation : player might have been changed in the mean time
-        reviewSession.put()
+        reviewSession = ReviewSession(key_name='reviewSession', currentScoreReviewKey=scoreReviewKey, parent=playerKey)
+        reviewSession.put()# TODO : transaction and/or isolation : player might have been changed in the mean time : what about the above query?
+    else:
+        scoreReviewKey = ReviewSession.currentScoreReviewKey.get_value_for_datastore(reviewSession)
 
     score = db.get(scoreReviewKey.parent())
     # in case score has been approved just now, it could have been removed
@@ -147,18 +146,16 @@ def getRandomScore(playerId):
 def reviewScore(playerId, scoreValue):
     playerKey = Key.from_path('Player', playerId)
     reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
-    scoreReviewKey = ReviewSession.currentScoreReviewKey.get_value_for_datastore(reviewSession)
 
-    if scoreReviewKey is None:
+    if reviewSession is None:
         # TODO :nothing to review (should throw Exception) and potentially consider the player as cheater
         return
 
+    scoreReviewKey = ReviewSession.currentScoreReviewKey.get_value_for_datastore(reviewSession)
     # We are done with it
-    reviewSession.currentScoreReviewKey = None # TODO : transaction and/or isolation : player might have been changed in the mean time
-    reviewSession.put()
+    reviewSession.delete()
 
     # The above could have potentially be put in a transaction but since there is only one player concerned, it should not matter
-
 
     scoreKey = scoreReviewKey.parent()
 

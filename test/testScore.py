@@ -161,7 +161,7 @@ class Test(unittest.TestCase):
 
         playerKey = Key.from_path('Player', playerId)
         reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
-        self.assertEqual(reviewSession.currentScoreReviewKey, None)
+        self.assertEqual(reviewSession, None)
 
     def test_newPlayerWithReviewAssigned_shouldGetReviewsAsOldAsRequested(self):
 
@@ -181,6 +181,7 @@ class Test(unittest.TestCase):
 
         playerKey = Key.from_path('Player', playerId)
         reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
+        self.assertNotEqual(reviewSession, None)
         self.assertEqual(ReviewSession.currentScoreReviewKey.get_value_for_datastore(reviewSession), oldReviewKey)
 
     # TODO : assign review on score creation
@@ -196,14 +197,13 @@ class Test(unittest.TestCase):
 
         playerKey = Key.from_path('Player', playerId)
         reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
-        self.assertEqual(ReviewSession.currentScoreReviewKey.get_value_for_datastore(reviewSession), None)
+        self.assertEqual(reviewSession, None)
 
 def assignScoreReview(reviewer, playerKey):
     pendingScore = PendingScore.get_by_key_name('pendingScore', parent=playerKey)
     scoreKey = PendingScore.nonVerified.get_value_for_datastore(pendingScore)
     scoreReviewKey = Key.from_path('ScoreReview','review', parent=scoreKey)
-    reviewerSession = ReviewSession.get_by_key_name('reviewSession', parent=reviewer.key())
-    reviewerSession.currentScoreReviewKey = scoreReviewKey
+    reviewerSession = ReviewSession(key_name='reviewSession', currentScoreReviewKey=scoreReviewKey, parent=reviewer.key())
     reviewerSession.put()
     return scoreReviewKey
 

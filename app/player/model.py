@@ -36,18 +36,12 @@ def createPlayer(userId, nickname, oldReviewNum = 0):
     record = Record(key_name='record', parent=player)
     record.put()
 
-    playSession = PlaySession(key_name='playSession', parent=player)
-    playSession.put()
-
-    reviewSession = ReviewSession(key_name='reviewSession', parent=player)
-
     if oldReviewNum > 0:
         # will work since the player has never played before (he will not get his own score)
         scoreReviewKey = getOldScoreReviewKey(oldReviewNum)
         if scoreReviewKey is not None:
-            reviewSession.currentScoreReviewKey = scoreReviewKey
-
-    reviewSession.put()
+            reviewSession = ReviewSession(key_name='reviewSession', currentScoreReviewKey=scoreReviewKey, parent=player)
+            reviewSession.put()
 
     return player
 
