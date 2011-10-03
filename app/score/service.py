@@ -35,7 +35,7 @@ def start(playerId):
         # solution :: block highest score seeds
 
         playSession = PlaySession(key_name='playSession', seed=random.randint(1, MAX_AS3_UINT_VALUE), seedDateTime=datetime.datetime.now(), parent=Key.from_path('Player', playerId))
-        playSession.put() # TODO : transaction and/or isolation : player might have been changed in the mean time
+        playSession.put()
         return playSession.seed
 
     return db.run_in_transaction(_start) # Should not be needed since start and setScore should never be called at the same time an they are the only one who modify playSession
@@ -101,10 +101,15 @@ def setScore(playerId, score):
                 nonVerifiedScore.put()
                 if pendingScore is None:
                     pendingScore = PendingScore(key_name='pendingScore', parent=playerKey)
-                if pendingScore.nonVerified is not None:
-                    pendingScore.nonVerified.delete() # TODO : delete reviews and conflicts as well!
+                elif pendingScore.nonVerified is not None:
+                    scoreReviewKey = Key.from_path('ScoreReview', 'review', parent=pendingScore.nonVerified.key())
+                    conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :review", review=scoreReviewKey).fetch(100) # shoud not be more than 2
+                    for conflict in conflicts:
+                        conflict.delete()
+                    db.delete(scoreReviewKey)
+                    pendingScore.nonVerified.delete()
                 pendingScore.nonVerified = nonVerifiedScore
-                pendingScore.put() # TODO : transaction and/or isolation : player might have been changed in the mean time
+                pendingScore.put()
 
                 scoreReview = ScoreReview(key_name="review", potentialReviewers=reviewers, parent=nonVerifiedScore)
                 scoreReview.put();
@@ -114,7 +119,7 @@ def setScore(playerId, score):
         else:
             pass # TODO : are you trying to cheat?
 
-        return None
+        return None # should not reach here except it is trying to post a smaller score (maybe to hide an earlier cheat)
 
     return db.run_in_transaction(_setScore) # TODO : if fails tell the client to retry
 
@@ -131,18 +136,21 @@ def getRandomScore(playerId):
 
     reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
     if reviewSession is None:
+        # TODO : sort ScoreReview by time ?
         scoreReviewKey = db.GqlQuery("SELECT __key__ FROM ScoreReview WHERE potentialReviewers = :playerId", playerId=playerId).get()
         if scoreReviewKey is None:
             return {}
         reviewSession = ReviewSession(key_name='reviewSession', currentScoreReviewKey=scoreReviewKey, parent=playerKey)
-        reviewSession.put()# TODO : transaction and/or isolation : player might have been changed in the mean time : what about the above query?
+        reviewSession.put()
+        # TODO : transaction and/or isolation : player might have been changed in the mean time : what about the above query?
+        # but this is probably uncessary since the reviewSession is modified only by the same player in reviewScore (which should not be called in the same time as getRandomScore)
     else:
         scoreReviewKey = ReviewSession.currentScoreReviewKey.get_value_for_datastore(reviewSession)
 
     score = db.get(scoreReviewKey.parent())
     # in case score has been approved just now, it could have been removed
     if score is not None:
-        return {'score' : score.value, 'actions' : score.actions, 'numUpdates' : score.numUpdates, 'seed' : score.seed}
+        return {'score' : score.value, 'actions' : score.actions, 'numUpdates' : score.numUpdates, 'seed' : score.seed} # TODO : remove value from the output, the reviewer need to compute without hint, else some reviewer could potentially be cheating by always approving scores
 
     return {}
 
@@ -160,18 +168,21 @@ def reviewScore(playerId, scoreValue):
 
     # The above could have potentially be put in a transaction but since there is only one player concerned, it should not matter
 
+    if scoreReviewKey is None:
+        raise Exception("the ReviewSession is incorect, it does not have any scoreReview attached to it!")
+
     scoreKey = scoreReviewKey.parent()
 
     cheaters = db.run_in_transaction(_checkConflicts, scoreKey, scoreValue, scoreReviewKey, playerKey) # TODO : if fails tell the client to retry
 
     if cheaters:
-        def cheaterUpdate(cheaterKey):
+        def _cheaterUpdate(cheaterKey):
             cheaterRecord = Record.get_by_key_name('record', parent=cheaterKey)
             cheaterRecord.numCheat+=1
             cheaterRecord.put()
 
         for cheaterKey in cheaters:
-            db.run_in_transaction(cheaterUpdate,cheaterKey)
+            db.run_in_transaction(_cheaterUpdate,cheaterKey)
 
 
 
@@ -193,7 +204,7 @@ def _checkConflicts(scoreKey, scoreValue, scoreReviewKey, playerKey):
         score.delete()
         db.delete(Key.from_path('PendingScore', 'pendingScore', parent = reviewedPlayerKey))
         #delete conflicts and set conflicting reviewers as cheater
-        conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :review", review=scoreReviewKey).fetch(5) # shoud not be more than 2
+        conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :review", review=scoreReviewKey).fetch(100) # shoud not be more than 2
         for conflict in conflicts:
             if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey:
                 raise Exception("this player has been able to review two times the same score!")
@@ -226,9 +237,7 @@ def _checkConflicts(scoreKey, scoreValue, scoreReviewKey, playerKey):
                 db.delete(scoreReviewKey)
                 conflictResolved = True
                 break
-            else:
-                #TODO : deal with : if too many different we cannot really deal with them, it should not happen though
-                pass
+
         if not conflictResolved:
             newConflict = ReviewConflict(player=playerKey,scoreValue=scoreValue, parent=scoreReviewKey)
             newConflict.put()
