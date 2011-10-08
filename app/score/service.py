@@ -46,7 +46,7 @@ def setScore(playerId, score):
 
     scoreValue = score['score']
     scoreTime = score['time']
-    actions = score['actions']
+    proof = score['proof']
 
     playerKey = Key.from_path('Player', playerId)
 
@@ -91,7 +91,7 @@ def setScore(playerId, score):
                 nonVerifiedScore = None
 
             if nonVerifiedScore is None or scoreValue > nonVerifiedScore.value:
-                nonVerifiedScore = Score(value=scoreValue,time=scoreTime,actions=actions,seed=seed, parent=playerKey)
+                nonVerifiedScore = Score(value=scoreValue,time=scoreTime,proof=proof,seed=seed, parent=playerKey)
                 nonVerifiedScore.put()
                 if pendingScore is None:
                     pendingScore = PendingScore(key_name='pendingScore', parent=playerKey, nonVerified=nonVerifiedScore)
@@ -144,7 +144,7 @@ def getRandomScore(playerId):
     score = db.get(scoreReviewKey.parent())
     # in case score has been approved just now, it could have been removed
     if score is not None:
-        return {'score' : score.value, 'time' : score.time, 'actions' : score.actions, 'seed' : score.seed} # TODO : remove value from the output, the reviewer need to compute without hint, else some reviewer could potentially be cheating by always approving scores
+        return {'score' : score.value, 'time' : score.time, 'proof' : score.proof, 'seed' : score.seed} # TODO : remove value from the output, the reviewer need to compute without hint, else some reviewer could potentially be cheating by always approving scores
 
     return {}
 
@@ -193,7 +193,7 @@ def _checkConflicts(scoreKey, scoreValue, scoreTime, scoreReviewKey, playerKey):
     if score.value == scoreValue and score.time == scoreTime:
         # delete the score (unverified) and reset a verfiedscore
         reviewedPlayerKey = scoreKey.parent()
-        verifiedScore = Score(key_name="verified", parent=reviewedPlayerKey, value=score.value, actions=score.actions, time=score.time, seed=score.seed)
+        verifiedScore = Score(key_name="verified", parent=reviewedPlayerKey, value=score.value, proof=score.proof, time=score.time, seed=score.seed)
         verifiedScore.put()
         score.delete()
         db.delete(Key.from_path('PendingScore', 'pendingScore', parent = reviewedPlayerKey))

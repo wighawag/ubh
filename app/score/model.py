@@ -7,6 +7,6 @@ from google.appengine.ext import db
 class Score(db.Model):
     value = db.IntegerProperty(required=True)
     time = db.IntegerProperty(required=True) # seconds ?
-    actions = db.BlobProperty(required=True)
+    proof = db.BlobProperty(required=True)
     seed = db.IntegerProperty(required=True)
     dateTime = db.DateTimeProperty(auto_now_add=True)

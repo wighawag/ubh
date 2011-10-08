@@ -2,8 +2,7 @@ import unittest
 from google.appengine.ext import testbed, db
 from score.model import Score
 from score import service
-from player.model import createPlayer, getPlayer, Player, ReviewSession,\
-    PendingScore, Record
+from player.model import createPlayer, ReviewSession, PendingScore, Record
 from google.appengine.api.datastore_types import Key
 
 class Test(unittest.TestCase):
@@ -19,7 +18,7 @@ class Test(unittest.TestCase):
 
 
     def test_given_score_and_approvingReviewer_then_playerVerifiedScoreIsUpdated(self):
-        score = {'score' : 3, 'actions' : "sdsd", 'time' : 0}
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
         playerId = "test"
         createPlayer(playerId, playerId)
         service.start(playerId)
@@ -34,7 +33,7 @@ class Test(unittest.TestCase):
 
 
     def test_given_score_and_twoDisapprovingButAgreeingReviewers_then_playerIsCheater_and_verfiedScoreDoNotChange(self):
-        score = {'score' : 99, 'actions' : "sdsd", 'time' : 0}
+        score = {'score' : 99, 'proof' : "sdsd", 'time' : 0}
         playerId = "test"
         createPlayer(playerId, playerId)
         service.start(playerId)
@@ -53,7 +52,7 @@ class Test(unittest.TestCase):
         self.assertEqual(playerRecord.numCheat, 1)
 
     def test_given_goodScoreWithWrongTime_thenPlayerIsCheater(self):
-        score = {'score' : 3, 'actions' : "sdsd", 'time' : 0}
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
         playerId = "test"
         createPlayer(playerId, playerId)
         service.start(playerId)
@@ -73,7 +72,7 @@ class Test(unittest.TestCase):
 
 
     def test_given_score_and_oneDisapprovingAndOneApprovingReviewer_then_firstReviewerIsCheater_and_playerVerifiedScoreIsUpdated(self):
-        score = {'score' : 3, 'actions' : "sdsd", 'time' : 0}
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
         playerId = "test"
         createPlayer(playerId, playerId)
         service.start(playerId)
@@ -93,7 +92,7 @@ class Test(unittest.TestCase):
         self.assertEqual(playerRecord.numCheat, 1)
 
     def test_given_score_and_ThreeDisapprovingReviewerOfWhichTwoAgree_then_NonAgreeingReviewerAndPLayerAreCheater(self):
-        score = {'score' : 99, 'actions' : "sdsd", 'time' : 0}
+        score = {'score' : 99, 'proof' : "sdsd", 'time' : 0}
         playerId = "test"
         createPlayer(playerId, playerId)
         service.start(playerId)
@@ -120,7 +119,7 @@ class Test(unittest.TestCase):
         self.assertEqual(playerRecord.numCheat, 1)
 
     def test_given_score_and_TwoDisapprovingButNonAgreeingReviewerAndOneApprovingReviewer_then_NonApprovingReviewerAreCheater_and_playerVerifiedScoreIsUpdated(self):
-        score = {'score' : 3, 'actions' : "sdsd", 'time' : 0}
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
         playerId = "test"
         createPlayer(playerId, playerId)
         service.start(playerId)
@@ -145,7 +144,7 @@ class Test(unittest.TestCase):
         self.assertEqual(playerRecord.numCheat, 1)
 
     def test_given_reviewerVerifyingScore_if_playerSetNewScoreInTheMeanTime_when_reviewerSetReviewItShouldBeDiscarded(self):
-        score = {'score' : 3, 'actions' : "sdsd", 'time' : 0}
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
         playerId = "test"
         createPlayer(playerId, playerId)
         service.start(playerId)
@@ -159,7 +158,7 @@ class Test(unittest.TestCase):
         reviewer2 = createPlayer("reviewer2", "reviewer2")
         scoreReviewKey = assignScoreReview(reviewer2, playerKey)
 
-        score = {'score' : 4, 'actions' : "sdsd", 'time' : 0}
+        score = {'score' : 4, 'proof' : "sdsd", 'time' : 0}
         service.start(playerId)
         service.setScore(playerId, score)
 
@@ -188,7 +187,7 @@ class Test(unittest.TestCase):
             playerId = "playerTest" + str(i)
             createPlayer(playerId, playerId)
             service.start(playerId)
-            service.setScore(playerId, {'score' : 4, 'actions' : "sdsd", 'time' : 0})
+            service.setScore(playerId, {'score' : 4, 'proof' : "sdsd", 'time' : 0})
             playerKey = Key.from_path('Player', playerId)
             pendingScore = PendingScore.get_by_key_name('pendingScore', parent=playerKey)
             score = pendingScore.nonVerified
@@ -219,7 +218,7 @@ class Test(unittest.TestCase):
         self.assertEqual(reviewSession, None)
 
     def test_given_aScoreSubmitedLate_ItShouldNotBeSubmited(self):
-        score = {'score' : 3, 'actions' : "sdsd", 'time' : -10} # -10 to fake a later submited score
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : -10} # -10 to fake a later submited score
         playerId = "test"
         createPlayer(playerId, playerId)
         service.start(playerId)
@@ -231,7 +230,7 @@ class Test(unittest.TestCase):
 
 
     def test_given_aScoreSubmitedTooEarly_ItShouldNotBeSubmited(self):
-        score = {'score' : 3, 'actions' : "sdsd", 'time' : 10}
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 10}
         playerId = "test"
         createPlayer(playerId, playerId)
         service.start(playerId)
