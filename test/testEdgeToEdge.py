@@ -9,7 +9,6 @@ from helper.googleUser import setCurrentUser, logoutCurrentUser
 
 from helper.amf import executeService, getMessageFromResponse, isResponseBad
 from helper.html import getFlashVarsFromResponse
-from player.model import getPlayer
 
 #from pyamf.amf3 import ByteArray
 
@@ -56,7 +55,7 @@ class Test(unittest.TestCase):
 
         seed = self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
 
-        score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
+        score = {'score' : 3, 'actions' : "sdsd", 'time' : 3}
 
         #set score (score, actions)
         self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.setScore", score)
@@ -66,13 +65,13 @@ class Test(unittest.TestCase):
         answer = self.executeGoogleUserSecureService("player2@mail.com", "player2", "score.service.getRandomScore")
         self.assertFalse('score' in answer and score['score'] == answer['score']
                          and 'actions' in answer and score['actions'] == answer['actions']
-                         and 'numUpdates' in answer and score['numUpdates'] == answer['numUpdates']
+                         and 'time' in answer and score['time'] == answer['time']
                          and 'seed' in answer and seed == answer['seed']
                          )
 
     def test_userSetScoreOtherRetrieveItAfterManyPlayerPlayed(self):
         self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
-        score = {'score' : 3, 'actions' : "sdsd", 'numUpdates' : 3}
+        score = {'score' : 3, 'actions' : "sdsd", 'time' : 0}
         self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.setScore", score)
 
         # loop many players :
@@ -83,10 +82,10 @@ class Test(unittest.TestCase):
 
             answer = self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.getRandomScore")
             if answer != {}:
-                match = (answer['score'] == score['score'] and answer['actions'] == score['actions'] and answer['numUpdates'] == score['numUpdates'])
+                match = (answer['score'] == score['score'] and answer['actions'] == score['actions'] and answer['time'] == score['time'])
 
             self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.start")
-            checkerScore = {'score' : 10, 'actions' : "sdsdsdsdsd" +str(counter), 'numUpdates' : 5}
+            checkerScore = {'score' : 10, 'actions' : "sdsdsdsdsd" +str(counter), 'time' : 0}
             self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.setScore", checkerScore)
 
             counter += 1

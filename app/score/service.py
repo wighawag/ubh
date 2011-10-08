@@ -21,10 +21,11 @@ from score.reviewconflict import ReviewConflict
 
 MAX_AS3_UINT_VALUE = 4294967295;
 
-UPDATE_DELTA_MILISECOND = 31 # update rate on flash player
-PAUSE_MULTIPLIER = 1.5 # quantity of pause allowed
+#UPDATE_DELTA_MILISECOND = 31 # update rate on flash player
+#PAUSE_MULTIPLIER = 1.5 # quantity of pause allowed
 MINIMUM_TIME = 10 # margin in seconds to send the data across
-
+#MIN_TIME_PER_LEVEL = 1# TODO : calculate what this min time should be????
+#MAX_TIME_PER_LEVEL = 5# TODO it is probably a logarithm function since the game spped up as you level up (should have another name)
 
 def start(playerId):
 
@@ -43,32 +44,28 @@ def start(playerId):
 
 def setScore(playerId, score):
 
+    scoreValue = score['score']
+    scoreTime = score['time']
+    actions = score['actions']
+
     playerKey = Key.from_path('Player', playerId)
 
     playSession = PlaySession.get_by_key_name('playSession', parent=playerKey)
     if playSession is None:
-        raise Exception("No play session started. start need to be called before setScore") # TODO not make it throw an exception and maybe set the player as cheater (possibly lower cheater)
+        return "No play session started. start need to be called before setScore"
 
     seed = playSession.seed
     seedDateTime = playSession.seedDateTime
 
 
-    # RENABLE THIS CHECKS + ALLOW TESTS TO DEAL WITH TIME
+    # TODO : investigate: should we consider the player as cheater for this two exception  ?
+    if seedDateTime + datetime.timedelta(seconds=scoreTime) > datetime.datetime.now():
+        return "you would not had enough time to play such score"
 
-    #minScoreTime = datetime.timedelta(milliseconds=(score['numUpdates'] * UPDATE_DELTA_MILISECOND))
-    #if player.seedDate + minScoreTime > datetime.datetime.now():
-    #    raise Exception("player would not had enough time to play such score")
+    maxScoreTime = scoreTime + MINIMUM_TIME
+    if seedDateTime + datetime.timedelta(seconds=maxScoreTime) < datetime.datetime.now():
+        return "you have spend too much time to play such score"
 
-    #maxScoreTime = minScoreTime * PAUSE_MULTIPLIER + datetime.timedelta(seconds=MINIMUM_TIME)
-    #if player.seedDate + maxScoreTime < datetime.datetime.now():
-    #    raise Exception("player has spend too much time to play such score")
-
-    # TODO : investigate: should we consider the player as cheater for this two exception above ?
-
-
-    value = score['score']
-    actions = score['actions']
-    numUpdates = score['numUpdates']
 
 
     # TODO : fetch potential reviewers :
@@ -86,15 +83,15 @@ def setScore(playerId, score):
         playSession.delete()
         verifiedScore = Score.get_by_key_name("verified", parent=playerKey)
 
-        if verifiedScore is None or value > verifiedScore.value:
+        if verifiedScore is None or scoreValue > verifiedScore.value:
             pendingScore = PendingScore.get_by_key_name("pendingScore", parent=playerKey)
             if pendingScore is not None:
                 nonVerifiedScore = pendingScore.nonVerified
             else:
                 nonVerifiedScore = None
 
-            if nonVerifiedScore is None or value > nonVerifiedScore.value:
-                nonVerifiedScore = Score(value=value,actions=actions,numUpdates=numUpdates,seed=seed, parent=playerKey)
+            if nonVerifiedScore is None or scoreValue > nonVerifiedScore.value:
+                nonVerifiedScore = Score(value=scoreValue,time=scoreTime,actions=actions,seed=seed, parent=playerKey)
                 nonVerifiedScore.put()
                 if pendingScore is None:
                     pendingScore = PendingScore(key_name='pendingScore', parent=playerKey, nonVerified=nonVerifiedScore)
@@ -110,13 +107,13 @@ def setScore(playerId, score):
 
                 scoreReview = ScoreReview(key_name="review", potentialReviewers=reviewers, parent=nonVerifiedScore)
                 scoreReview.put();
-                return nonVerifiedScore
+                return "OK"
             else:
                 pass # TODO : are you trying to cheat?
         else:
             pass # TODO : are you trying to cheat?
 
-        return None # should not reach here except it is trying to post a smaller score (maybe to hide an earlier cheat)
+        return "should not reach here except you are trying to post a smaller score (maybe to hide an earlier cheat)"
 
     return db.run_in_transaction(_setScore) # TODO : if fails tell the client to retry
 
@@ -147,11 +144,13 @@ def getRandomScore(playerId):
     score = db.get(scoreReviewKey.parent())
     # in case score has been approved just now, it could have been removed
     if score is not None:
-        return {'score' : score.value, 'actions' : score.actions, 'numUpdates' : score.numUpdates, 'seed' : score.seed} # TODO : remove value from the output, the reviewer need to compute without hint, else some reviewer could potentially be cheating by always approving scores
+        return {'score' : score.value, 'time' : score.time, 'actions' : score.actions, 'seed' : score.seed} # TODO : remove value from the output, the reviewer need to compute without hint, else some reviewer could potentially be cheating by always approving scores
 
     return {}
 
-def reviewScore(playerId, scoreValue):
+def reviewScore(playerId, score):
+    scoreValue = score['score']
+    scoreTime = score['time']
     playerKey = Key.from_path('Player', playerId)
     reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
 
@@ -168,7 +167,7 @@ def reviewScore(playerId, scoreValue):
 
     scoreKey = scoreReviewKey.parent()
 
-    cheaters = db.run_in_transaction(_checkConflicts, scoreKey, scoreValue, scoreReviewKey, playerKey) # TODO : if fails tell the client to retry
+    cheaters = db.run_in_transaction(_checkConflicts, scoreKey, scoreValue, scoreTime, scoreReviewKey, playerKey) # TODO : if fails tell the client to retry
 
     if cheaters:
         def _cheaterUpdate(cheaterKey):
@@ -181,7 +180,7 @@ def reviewScore(playerId, scoreValue):
 
 
 
-def _checkConflicts(scoreKey, scoreValue, scoreReviewKey, playerKey):
+def _checkConflicts(scoreKey, scoreValue, scoreTime, scoreReviewKey, playerKey):
     score = Score.get(scoreKey)
 
     # if score is None (and we implemented score as reference stored in Player it probably means score has changed in the mean time (approved for example)
@@ -191,10 +190,10 @@ def _checkConflicts(scoreKey, scoreValue, scoreReviewKey, playerKey):
 
     cheaters = []
     conflictResolved = False
-    if score.value == scoreValue:
+    if score.value == scoreValue and score.time == scoreTime:
         # delete the score (unverified) and reset a verfiedscore
         reviewedPlayerKey = scoreKey.parent()
-        verifiedScore = Score(key_name="verified", parent=reviewedPlayerKey, value=score.value, actions=score.actions, numUpdates=score.numUpdates, seed=score.seed)
+        verifiedScore = Score(key_name="verified", parent=reviewedPlayerKey, value=score.value, actions=score.actions, time=score.time, seed=score.seed)
         verifiedScore.put()
         score.delete()
         db.delete(Key.from_path('PendingScore', 'pendingScore', parent = reviewedPlayerKey))
@@ -203,7 +202,7 @@ def _checkConflicts(scoreKey, scoreValue, scoreReviewKey, playerKey):
         for conflict in conflicts:
             if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey:
                 raise Exception("this player has been able to review two times the same score!")
-            if conflict.scoreValue != scoreValue:
+            if conflict.scoreValue != scoreValue or conflict.scoreTime != scoreTime:
                 cheaters.append(ReviewConflict.player.get_value_for_datastore(conflict))
                 conflict.delete()
         db.delete(scoreReviewKey)
@@ -215,7 +214,7 @@ def _checkConflicts(scoreKey, scoreValue, scoreReviewKey, playerKey):
         for conflict in conflicts:
             if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey:
                 raise Exception("this player has been able to review two times the same score!") # TODO : set reviewer as cheater (but this should not happen)
-            if conflict.scoreValue == scoreValue:
+            if conflict.scoreValue == scoreValue and conflict.scoreTime == scoreTime:
                 #player is a cheater
                 reviewedPlayerKey = scoreKey.parent()
                 reviewedPlayerRecord = Record.get_by_key_name('record', parent=reviewedPlayerKey)
@@ -224,7 +223,7 @@ def _checkConflicts(scoreKey, scoreValue, scoreReviewKey, playerKey):
 
                 #remove stuffs and assign cheater status to reviewer
                 for conflict in conflicts:
-                    if conflict.scoreValue != scoreValue:
+                    if conflict.scoreValue != scoreValue or conflict.scoreTime != scoreTime:
                         cheaters.append(ReviewConflict.player.get_value_for_datastore(conflict))
                         conflict.delete()
                 score.delete()
@@ -234,7 +233,7 @@ def _checkConflicts(scoreKey, scoreValue, scoreReviewKey, playerKey):
                 break
 
         if not conflictResolved:
-            newConflict = ReviewConflict(player=playerKey,scoreValue=scoreValue, parent=scoreReviewKey)
+            newConflict = ReviewConflict(player=playerKey,scoreValue=scoreValue,scoreTime=scoreTime, parent=scoreReviewKey)
             newConflict.put()
 
         # TODO : remove reviewer from ScoreReview.potentialReviewers ( costly but necessary ? need to do that only if the ScoreReview need to be kept (conflict present)
