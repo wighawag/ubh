@@ -9,7 +9,7 @@ class Player(db.Model):
 
 # child of Player with key_name='pendingScore'
 class PendingScore(db.Model):
-    nonVerified = db.ReferenceProperty(Score)
+    nonVerified = db.ReferenceProperty(Score,required=True)
 
 # child of Player with key_name='record'
 class Record(db.Model):
@@ -20,12 +20,12 @@ class Record(db.Model):
 
 # child of Player with key_name='playSession'
 class PlaySession(db.Model):
-    seed = db.IntegerProperty()
-    seedDateTime = db.DateTimeProperty()
+    seed = db.IntegerProperty(required=True)
+    seedDateTime = db.DateTimeProperty(required=True)
 
 # child of Player with key_name='reviewSession'
 class ReviewSession(db.Model):
-    currentScoreReviewKey = db.ReferenceProperty(ScoreReview)
+    currentScoreReviewKey = db.ReferenceProperty(ScoreReview,required=True)
 
 
 def createPlayer(userId, nickname, oldReviewNum = 0):

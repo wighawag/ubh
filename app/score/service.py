@@ -49,9 +49,6 @@ def setScore(playerId, score):
     if playSession is None:
         raise Exception("No play session started. start need to be called before setScore") # TODO not make it throw an exception and maybe set the player as cheater (possibly lower cheater)
 
-    if playSession.seed is None:
-        raise Exception("Seed not set while trying to set a new score. should not have happened!")
-
     seed = playSession.seed
     seedDateTime = playSession.seedDateTime
 
@@ -100,15 +97,15 @@ def setScore(playerId, score):
                 nonVerifiedScore = Score(value=value,actions=actions,numUpdates=numUpdates,seed=seed, parent=playerKey)
                 nonVerifiedScore.put()
                 if pendingScore is None:
-                    pendingScore = PendingScore(key_name='pendingScore', parent=playerKey)
-                elif pendingScore.nonVerified is not None:
+                    pendingScore = PendingScore(key_name='pendingScore', parent=playerKey, nonVerified=nonVerifiedScore)
+                else:
                     scoreReviewKey = Key.from_path('ScoreReview', 'review', parent=pendingScore.nonVerified.key())
                     conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :review", review=scoreReviewKey).fetch(100) # shoud not be more than 2
                     for conflict in conflicts:
                         conflict.delete()
                     db.delete(scoreReviewKey)
                     pendingScore.nonVerified.delete()
-                pendingScore.nonVerified = nonVerifiedScore
+                    pendingScore.nonVerified = nonVerifiedScore
                 pendingScore.put()
 
                 scoreReview = ScoreReview(key_name="review", potentialReviewers=reviewers, parent=nonVerifiedScore)
@@ -168,8 +165,6 @@ def reviewScore(playerId, scoreValue):
 
     # The above could have potentially be put in a transaction but since there is only one player concerned, it should not matter
 
-    if scoreReviewKey is None:
-        raise Exception("the ReviewSession is incorect, it does not have any scoreReview attached to it!")
 
     scoreKey = scoreReviewKey.parent()
 
