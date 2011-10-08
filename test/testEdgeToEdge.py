@@ -82,7 +82,7 @@ class Test(unittest.TestCase):
 
             answer = self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.getRandomScore")
             if answer != {}:
-                match = (answer['score'] == score['score'] and answer['proof'] == score['proof'] and answer['time'] == score['time'])
+                match = (answer['proof'] == score['proof']) # check whether they are assigned to review the first player's score
 
             self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.start")
             checkerScore = {'score' : 10, 'proof' : "sdsdsdsdsd" +str(counter), 'time' : 0}

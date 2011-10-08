@@ -144,7 +144,7 @@ def getRandomScore(playerId):
     score = db.get(scoreReviewKey.parent())
     # in case score has been approved just now, it could have been removed
     if score is not None:
-        return {'score' : score.value, 'time' : score.time, 'proof' : score.proof, 'seed' : score.seed} # TODO : remove value from the output, the reviewer need to compute without hint, else some reviewer could potentially be cheating by always approving scores
+        return {'proof' : score.proof, 'seed' : score.seed} # TODO : remove value from the output, the reviewer need to compute without hint, else some reviewer could potentially be cheating by always approving scores
 
     return {}
 
