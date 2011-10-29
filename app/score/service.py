@@ -130,7 +130,7 @@ def getRandomScore(playerId):
     if playerRecord.lastReviewDateTime is not None and playerRecord.lastReviewDateTime > oldEnoughTime:
         # TODO : check whethe rthis randomize stuff is good or not:
         return {'retry' : 2000 + random.random() * 5000  + ceil(reviewTimeUnitMilliseconds * (1 + random.random() * 2)) }
-
+        # could be 2 * reviewTimeUnit / config.nbPlayerPerTimeUnit
 
     reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
     if reviewSession is None:
