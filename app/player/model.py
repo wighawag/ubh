@@ -1,7 +1,6 @@
 from google.appengine.ext import db
 
-from score.review import ScoreReview, getOldScoreReviewKey
-from score.model import Score
+from score.model import NonVerifiedScore
 
 class Player(db.Model):
     nickname = db.StringProperty(required=True)
@@ -9,14 +8,20 @@ class Player(db.Model):
 
 # child of Player with key_name='pendingScore'
 class PendingScore(db.Model):
-    nonVerified = db.ReferenceProperty(Score,required=True)
+    nonVerified = db.ReferenceProperty(NonVerifiedScore,required=True)
 
 # child of Player with key_name='record'
 class Record(db.Model):
     numCheat = db.IntegerProperty(default=0)
-    numScoreReviewed = db.IntegerProperty(default=0)
     numScoreVerified = db.IntegerProperty(default=0)
     creationDateTime = db.DateTimeProperty(auto_now_add=True)
+
+    numScoreReviewed = db.IntegerProperty(default=0)
+    numScoreReviewedToday = db.IntegerProperty(default=0)
+
+    numDaysPlayed = db.IntegerProperty(default=0)
+    lastDayPlayed = db.DateProperty()
+    maxWaitingDateTime = db.DateTimeProperty()
 
 # child of Player with key_name='playSession'
 class PlaySession(db.Model):
@@ -25,23 +30,16 @@ class PlaySession(db.Model):
 
 # child of Player with key_name='reviewSession'
 class ReviewSession(db.Model):
-    currentScoreReviewKey = db.ReferenceProperty(ScoreReview,required=True)
+    currentScoreToReview = db.ReferenceProperty(NonVerifiedScore,required=True)
 
 
-def createPlayer(userId, nickname, oldReviewNum = 0):
+def createPlayer(userId, nickname):
 
     player = Player(key_name=userId, nickname=nickname)
     player.put()
 
     record = Record(key_name='record', parent=player)
     record.put()
-
-    if oldReviewNum > 0:
-        # will work since the player has never played before (he will not get his own score)
-        scoreReviewKey = getOldScoreReviewKey(oldReviewNum)
-        if scoreReviewKey is not None:
-            reviewSession = ReviewSession(key_name='reviewSession', currentScoreReviewKey=scoreReviewKey, parent=player)
-            reviewSession.put()
 
     return player
 

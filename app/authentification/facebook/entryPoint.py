@@ -49,13 +49,10 @@ class MainPage(webapp.RequestHandler):
             playerId = facebookUser.playerId
         else:
             # if the facebook user has more than X friends, then he is allowed to verify old scores (if any) directly
-            friends = facebookApi(u'/me/friends', oauthToken)
-            enoughFriend = len(friends.data) > 5
-            if enoughFriend:
-                oldReviewNum = 40
-            else:
-                oldReviewNum = 80
-            player = createPlayer('facebook_' + userId, "nickName" + userId, oldReviewNum)
+            #friends = facebookApi(u'/me/friends', oauthToken)
+            #enoughFriend = len(friends.data) > 5
+
+            player = createPlayer('facebook_' + userId, "nickName" + userId)
             playerId = player.key().id_or_name()
             facebookUser = FacebookUser(key_name=userId, playerId=playerId, oauthToken=oauthToken)
             facebookUser.put();

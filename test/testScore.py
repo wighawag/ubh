@@ -1,6 +1,6 @@
 import unittest
 from google.appengine.ext import testbed, db
-from score.model import Score
+from score.model import VerifiedScore, NonVerifiedScore
 from score import service
 from player.model import createPlayer, ReviewSession, PendingScore, Record
 from google.appengine.api.datastore_types import Key
@@ -28,7 +28,7 @@ class Test(unittest.TestCase):
 
         createReviewerAndReview("test2", playerKey, {'score':3, 'time': 0})
 
-        verifiedScore = Score.get_by_key_name("verified", parent=playerKey)
+        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
         self.assertEqual(verifiedScore.value, score['score'])
 
 
@@ -45,7 +45,7 @@ class Test(unittest.TestCase):
 
         createReviewerAndReview("test3", playerKey, {'score':3, 'time': 0})
 
-        verifiedScore = Score.get_by_key_name("verified", parent=playerKey)
+        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
         self.assertTrue(verifiedScore is None or verifiedScore.value == 0)
 
         playerRecord = Record.get_by_key_name('record', parent=playerKey)
@@ -64,7 +64,7 @@ class Test(unittest.TestCase):
 
         createReviewerAndReview("test3", playerKey, {'score':3, 'time': 3})
 
-        verifiedScore = Score.get_by_key_name("verified", parent=playerKey)
+        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
         self.assertTrue(verifiedScore is None or verifiedScore.value == 0)
 
         playerRecord = Record.get_by_key_name('record', parent=playerKey)
@@ -84,7 +84,7 @@ class Test(unittest.TestCase):
 
         createReviewerAndReview("test3", playerKey, {'score':3, 'time': 0})
 
-        verifiedScore = Score.get_by_key_name("verified", parent=playerKey)
+        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
         self.assertEqual(verifiedScore.value, 3)
 
         playerKey = Key.from_path('Player', 'test2')
@@ -107,7 +107,7 @@ class Test(unittest.TestCase):
         createReviewerAndReview("test4", playerKey, {'score':3, 'time': 0})
 
 
-        verifiedScore = Score.get_by_key_name("verified", parent=playerKey)
+        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
         playerRecord = Record.get_by_key_name('record', parent=playerKey)
 
         self.assertTrue(verifiedScore is None or verifiedScore.value == 0)
@@ -132,7 +132,7 @@ class Test(unittest.TestCase):
 
         createReviewerAndReview("test4", playerKey, {'score':3, 'time': 0})
 
-        verifiedScore = Score.get_by_key_name("verified", parent=playerKey)
+        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
         self.assertEqual(verifiedScore.value, 3)
 
         playerKey = Key.from_path('Player', 'test2')
@@ -156,7 +156,7 @@ class Test(unittest.TestCase):
 
 
         reviewer2 = createPlayer("reviewer2", "reviewer2")
-        scoreReviewKey = assignScoreReview(reviewer2, playerKey)
+        scoreToReview = assignScoreReview(reviewer2, playerKey)
 
         score = {'score' : 4, 'proof' : "sdsd", 'time' : 0}
         service.start(playerId)
@@ -165,11 +165,11 @@ class Test(unittest.TestCase):
         service.reviewScore("reviewer", {'score':4, 'time': 0})
         service.reviewScore("reviewer2", {'score':3, 'time': 0})
 
-        verifiedScore = Score.get_by_key_name("verified", parent=playerKey)
+        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
         self.assertEqual(verifiedScore, None)
 
         # TDO : move to another test?
-        scoreToReview = db.get(scoreReviewKey.parent())
+        scoreToReview = db.get(scoreToReview.key())
         self.assertEqual(scoreToReview, None)
 
 
@@ -181,41 +181,28 @@ class Test(unittest.TestCase):
         reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
         self.assertEqual(reviewSession, None)
 
-    def test_newPlayerWithReviewAssigned_shouldGetReviewsAsOldAsRequested(self):
-
-        for i in range(0,41):
-            playerId = "playerTest" + str(i)
-            createPlayer(playerId, playerId)
-            service.start(playerId)
-            service.setScore(playerId, {'score' : 4, 'proof' : "sdsd", 'time' : 0})
-            playerKey = Key.from_path('Player', playerId)
-            pendingScore = PendingScore.get_by_key_name('pendingScore', parent=playerKey)
-            score = pendingScore.nonVerified
-            if i == 10: # will be the 30th reviews
-                oldReviewKey = Key.from_path('ScoreReview','review', parent=score.key())
-
-        playerId = "test"
-        createPlayer(playerId, playerId, 30)
-
-        playerKey = Key.from_path('Player', playerId)
-        reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
-        self.assertNotEqual(reviewSession, None)
-        self.assertEqual(ReviewSession.currentScoreReviewKey.get_value_for_datastore(reviewSession), oldReviewKey)
-
-    # TODO : assign review on score creation
-    def test_given_aCheaterPlayer_ItShouldNotBeAssignedAnyReview(self):
-
-        playerId = "test"
-        player =createPlayer(playerId, playerId, 30)
-
-        # set the player as cheater
-        player.numCheat = 1
-        player.put()
+#    def test_newPlayerWithReviewAssigned_shouldGetReviewsAsOldAsRequested(self):
+#
+#        for i in range(0,41):
+#            playerId = "playerTest" + str(i)
+#            createPlayer(playerId, playerId)
+#            service.start(playerId)
+#            service.setScore(playerId, {'score' : 4, 'proof' : "sdsd", 'time' : 0})
+#            playerKey = Key.from_path('Player', playerId)
+#            pendingScore = PendingScore.get_by_key_name('pendingScore', parent=playerKey)
+#            score = pendingScore.nonVerified
+#            if i == 10: # will be the 30th reviews
+#                oldReviewKey = Key.from_path('ScoreReview','review', parent=score.key())
+#
+#        playerId = "test"
+#        createPlayer(playerId, playerId, 30)
+#
+#        playerKey = Key.from_path('Player', playerId)
+#        reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
+#        self.assertNotEqual(reviewSession, None)
+#        self.assertEqual(reviewSession.currentScoreToReview,db.get(oldReviewKey))
 
 
-        playerKey = Key.from_path('Player', playerId)
-        reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
-        self.assertEqual(reviewSession, None)
 
     def test_given_aScoreSubmitedLate_ItShouldNotBeSubmited(self):
         score = {'score' : 3, 'proof' : "sdsd", 'time' : -10} # -10 to fake a later submited score
@@ -244,17 +231,16 @@ class Test(unittest.TestCase):
 
 def assignScoreReview(reviewer, playerKey):
     pendingScore = PendingScore.get_by_key_name('pendingScore', parent=playerKey)
-    scoreKey = PendingScore.nonVerified.get_value_for_datastore(pendingScore)
-    scoreReviewKey = Key.from_path('ScoreReview','review', parent=scoreKey)
-    reviewerSession = ReviewSession(key_name='reviewSession', currentScoreReviewKey=scoreReviewKey, parent=reviewer.key())
+    scoreToReview = pendingScore.nonVerified
+    reviewerSession = ReviewSession(key_name='reviewSession', currentScoreToReview=scoreToReview, parent=reviewer.key())
     reviewerSession.put()
-    return scoreReviewKey
+    return scoreToReview
 
 def createReviewerAndReview(reviewerId, playerKey, scoreValue):
     reviewer = createPlayer(reviewerId, reviewerId)
-    scoreReviewKey = assignScoreReview(reviewer, playerKey)
+    scoreToReview = assignScoreReview(reviewer, playerKey)
     service.reviewScore(reviewerId, scoreValue)
-    return scoreReviewKey
+    return scoreToReview
 
 if __name__ == "__main__":
     unittest.main()

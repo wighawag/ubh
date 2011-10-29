@@ -1,31 +1,30 @@
 #######################################
 ## Test purpose #######################
 #######################################
-from score.review import ScoreReview
-from google.appengine.api.datastore_types import Key
 def echo(playerId, data):
     return "player " + playerId + " : " + data
-
 #######################################
 #######################################
 #######################################
 
 import random
 import datetime
-from score.model import Score
+
+from google.appengine.api.datastore_types import Key
+
+from score.model import VerifiedScore, NonVerifiedScore
 from player.model import PlaySession, PendingScore, Record, ReviewSession
 
 from google.appengine.ext import db
 
 from score.reviewconflict import ReviewConflict
 
+from stats.model import getReviewTimeUnit
+
+
 MAX_AS3_UINT_VALUE = 4294967295;
 
-#UPDATE_DELTA_MILISECOND = 31 # update rate on flash player
-#PAUSE_MULTIPLIER = 1.5 # quantity of pause allowed
 MINIMUM_TIME = 10 # margin in seconds to send the data across
-#MIN_TIME_PER_LEVEL = 1# TODO : calculate what this min time should be????
-#MAX_TIME_PER_LEVEL = 5# TODO it is probably a logarithm function since the game spped up as you level up (should have another name)
 
 def start(playerId):
 
@@ -35,8 +34,28 @@ def start(playerId):
         # TODO : investigate what if user wait for a seed that has already a high score from another player?
         # solution :: block highest score seeds
 
-        playSession = PlaySession(key_name='playSession', seed=random.randint(1, MAX_AS3_UINT_VALUE), seedDateTime=datetime.datetime.now(), parent=Key.from_path('Player', playerId))
+        playerKey = Key.from_path('Player', playerId)
+
+        playSession = PlaySession(key_name='playSession', seed=random.randint(1, MAX_AS3_UINT_VALUE), seedDateTime=datetime.datetime.now(), parent=playerKey)
         playSession.put()
+
+        # TODO : should it be moved into session management ?
+        # Calculate the max time to wait for this player to be considered as a potential reviewers.
+        # Basically we calculate the probable time the player will come back
+        # and use this to grab it when we need score to be reviewed.
+        # if the player is expected to come during that period we add it to the potential reviewers
+        # otherwise we ignore it
+        now = datetime.datetime.now()
+        today = datetime.date.today()
+        playerRecord = Record.get_by_key_name('record', parent=playerKey)
+        if playerRecord.lastDayPlayed != today:
+            numDaysSinceCreation = (now - playerRecord.creationDateTime).days
+            playerRecord.numDaysPlayed += 1
+            playerRecord.lastDayPlayed = today
+            playerRecord.maxWaitingDateTime = now + datetime.timedelta(days=2 * (numDaysSinceCreation/playerRecord.numDaysPlayed))
+            playerRecord.numScoreReviewedToday = 0 # TODO : definitively make it session based since if player do not start it might not be able to review score
+            playerRecord.put()
+
         return playSession.seed
 
     return db.run_in_transaction(_start) # Should not be needed since start and setScore should never be called at the same time an they are the only one who modify playSession
@@ -67,21 +86,9 @@ def setScore(playerId, score):
         return "you have spend too much time to play such score"
 
 
-
-    # TODO : fetch potential reviewers :
-    # - cheaters should be excluded
-    # players having already reviewed and played should be prioritised
-    # players playing frequently should also be prioritised if we limit the number of potential reviewers
-    # of course the reviewer should not be the player itself
-    # if friend's information is available, might not want player to review their friends ?
-    # new players should be anti-prioritised (might be not necessary if other stuff are done)
-    reviewers = []
-
-    # TODO : transaction  ?
-
     def _setScore():
         playSession.delete()
-        verifiedScore = Score.get_by_key_name("verified", parent=playerKey)
+        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
 
         if verifiedScore is None or scoreValue > verifiedScore.value:
             pendingScore = PendingScore.get_by_key_name("pendingScore", parent=playerKey)
@@ -91,22 +98,18 @@ def setScore(playerId, score):
                 nonVerifiedScore = None
 
             if nonVerifiedScore is None or scoreValue > nonVerifiedScore.value:
-                nonVerifiedScore = Score(value=scoreValue,time=scoreTime,proof=proof,seed=seed, parent=playerKey)
+                nonVerifiedScore = NonVerifiedScore(value=scoreValue,time=scoreTime,proof=proof,seed=seed, parent=playerKey)
                 nonVerifiedScore.put()
                 if pendingScore is None:
                     pendingScore = PendingScore(key_name='pendingScore', parent=playerKey, nonVerified=nonVerifiedScore)
                 else:
-                    scoreReviewKey = Key.from_path('ScoreReview', 'review', parent=pendingScore.nonVerified.key())
-                    conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :review", review=scoreReviewKey).fetch(100) # shoud not be more than 2
+                    conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :score", score=pendingScore.nonVerified.key()).fetch(100) # shoud not be more than 2
                     for conflict in conflicts:
                         conflict.delete()
-                    db.delete(scoreReviewKey)
                     pendingScore.nonVerified.delete()
                     pendingScore.nonVerified = nonVerifiedScore
                 pendingScore.put()
 
-                scoreReview = ScoreReview(key_name="review", potentialReviewers=reviewers, parent=nonVerifiedScore)
-                scoreReview.put();
                 return "OK"
             else:
                 pass # TODO : are you trying to cheat?
@@ -123,28 +126,40 @@ def getRandomScore(playerId):
     playerKey = Key.from_path('Player', playerId)
     playerRecord = Record.get_by_key_name('record', parent=playerKey)
 
-    if playerRecord.numCheat > 0:
-        # this could happen even if reviewer has been  assigned a review since at that time it was maybe not considered a cheater
+    # do not review if you are a cheater or if you already reviewed 10 scores
+    if playerRecord.numCheat > 0 or playerRecord.numScoreReviewed >= 10: # TODO : why 10 max numReview per day ?
         return {} # TODO : if player is considered cheater, should we give him/her some reviews?
 
 
     reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
     if reviewSession is None:
-        # TODO : sort ScoreReview by time ?
-        scoreReviewKey = db.GqlQuery("SELECT __key__ FROM ScoreReview WHERE potentialReviewers = :playerId", playerId=playerId).get()
-        if scoreReviewKey is None:
-            return {}
-        reviewSession = ReviewSession(key_name='reviewSession', currentScoreReviewKey=scoreReviewKey, parent=playerKey)
-        reviewSession.put()
-        # TODO : transaction and/or isolation : player might have been changed in the mean time : what about the above query?
-        # but this is probably uncessary since the reviewSession is modified only by the same player in reviewScore (which should not be called in the same time as getRandomScore)
-    else:
-        scoreReviewKey = ReviewSession.currentScoreReviewKey.get_value_for_datastore(reviewSession)
+        # do not allow reviewer to jump on a just posted review. basically the reviewer should have lots of potential review to take from and other reviewer shoudl compete with
+        reviewTimeUnit = getReviewTimeUnit()
+        lastDateTime = datetime.datetime.now() - datetime.timedelta(milliseconds=reviewTimeUnit)
+        potentialScoresToReview = db.GqlQuery("SELECT FROM NonVerifiedScore WHERE dateTime < :lastDateTime ORDER BY dateTime ASC", lastDateTime=lastDateTime).fetch(5)
 
-    score = db.get(scoreReviewKey.parent())
+        scoreToReview = None
+        for score in potentialScoresToReview:
+            if score.parent_key() != playerKey:
+                try:
+                    score.conflictingReviewers.index(playerId)
+                except ValueError: # the current reviewer did not review this score yet
+                    scoreToReview = score
+                    break
+
+        if scoreToReview is None:
+            return {}
+
+        reviewSession = ReviewSession(key_name='reviewSession', currentScoreToReview=scoreToReview, parent=playerKey)
+        reviewSession.put()
+        # TODO : transaction and/or isolation : player mighcurrentScoreToReviewKeyt have been changed in the mean time : what about the above query?
+        # but this is probably unnecessary since the reviewSession is modified only by the same player in reviewScore (which should not be called in the same time as getRandomScore)
+    else:
+        scoreToReview = reviewSession.currentScoreToReview
+
     # in case score has been approved just now, it could have been removed
-    if score is not None:
-        return {'proof' : score.proof, 'seed' : score.seed} # TODO : remove value from the output, the reviewer need to compute without hint, else some reviewer could potentially be cheating by always approving scores
+    if scoreToReview is not None:
+        return {'proof' : scoreToReview.proof, 'seed' : scoreToReview.seed}
 
     return {}
 
@@ -158,16 +173,20 @@ def reviewScore(playerId, score):
         # TODO :nothing to review (should throw Exception) and potentially consider the player as cheater
         return
 
-    scoreReviewKey = ReviewSession.currentScoreReviewKey.get_value_for_datastore(reviewSession)
+    scoreToReviewKey = ReviewSession.currentScoreToReview.get_value_for_datastore(reviewSession)
     # We are done with it
     reviewSession.delete()
 
     # The above could have potentially be put in a transaction but since there is only one player concerned, it should not matter
 
+    def _increaseNumScoreReviewed():
+        playerRecord = Record.get_by_key_name('record', parent=playerKey)
+        playerRecord.numScoreReviewed += 1
+        playerRecord.numScoreReviewedToday += 1
+        playerRecord.put()
+    db.run_in_transaction(_increaseNumScoreReviewed)
 
-    scoreKey = scoreReviewKey.parent()
-
-    cheaters = db.run_in_transaction(_checkConflicts, scoreKey, scoreValue, scoreTime, scoreReviewKey, playerKey) # TODO : if fails tell the client to retry
+    cheaters = db.run_in_transaction(_checkConflicts, scoreToReviewKey, scoreValue, scoreTime, playerId) # TODO : if fails tell the client to retry
 
     if cheaters:
         def _cheaterUpdate(cheaterKey):
@@ -180,43 +199,43 @@ def reviewScore(playerId, score):
 
 
 
-def _checkConflicts(scoreKey, scoreValue, scoreTime, scoreReviewKey, playerKey):
-    score = Score.get(scoreKey)
+def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId):
+    playerKey = Key.from_path('Player', playerId)
 
-    # if score is None (and we implemented score as reference stored in Player it probably means score has changed in the mean time (approved for example)
-    if score is None:
-        # too late
-        return [];
+    scoreToReview = db.get(scoreToReviewKey)
+    if scoreToReview is None:
+        return []
 
     cheaters = []
     conflictResolved = False
-    if score.value == scoreValue and score.time == scoreTime:
-        # delete the score (unverified) and reset a verfiedscore
-        reviewedPlayerKey = scoreKey.parent()
-        verifiedScore = Score(key_name="verified", parent=reviewedPlayerKey, value=score.value, proof=score.proof, time=score.time, seed=score.seed)
+    if scoreToReview.value == scoreValue and scoreToReview.time == scoreTime:
+        # delete the score (unverified) and reset a verifiedScore
+        reviewedPlayerKey = scoreToReview.parent_key()
+        verifiedScore = VerifiedScore(key_name="verified", parent=reviewedPlayerKey, value=scoreToReview.value, proof=scoreToReview.proof, time=scoreToReview.time, seed=scoreToReview.seed, conflictingReviewers=scoreToReview.conflictingReviewers)
         verifiedScore.put()
-        score.delete()
+        reviewedPlayerRecord = Record.get_by_key_name('record', parent=reviewedPlayerKey)
+        reviewedPlayerRecord.numScoreVerified += 1
+        reviewedPlayerRecord.put()
         db.delete(Key.from_path('PendingScore', 'pendingScore', parent = reviewedPlayerKey))
         #delete conflicts and set conflicting reviewers as cheater
-        conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :review", review=scoreReviewKey).fetch(100) # shoud not be more than 2
+        conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :score", score=scoreToReview).fetch(100) # shoud not be more than 2
         for conflict in conflicts:
             if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey:
                 raise Exception("this player has been able to review two times the same score!")
             if conflict.scoreValue != scoreValue or conflict.scoreTime != scoreTime:
                 cheaters.append(ReviewConflict.player.get_value_for_datastore(conflict))
                 conflict.delete()
-        db.delete(scoreReviewKey)
+        scoreToReview.delete()
         conflictResolved = True
-        #TODO : deal with no more existing review and conflicts when reviewScore is called after getRandomScore was already called with the review being deleted (?)
     else:
         #check whether a conflict exist with the same score value, if that is the case, player has cheated
-        conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :review", review=scoreReviewKey).fetch(100) # should not be more than 3
+        conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :score", score=scoreToReview).fetch(100) # should not be more than 3
         for conflict in conflicts:
             if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey:
                 raise Exception("this player has been able to review two times the same score!") # TODO : set reviewer as cheater (but this should not happen)
             if conflict.scoreValue == scoreValue and conflict.scoreTime == scoreTime:
                 #player is a cheater
-                reviewedPlayerKey = scoreKey.parent()
+                reviewedPlayerKey = scoreToReview.parent_key()
                 reviewedPlayerRecord = Record.get_by_key_name('record', parent=reviewedPlayerKey)
                 reviewedPlayerRecord.numCheat+=1
                 reviewedPlayerRecord.put()
@@ -226,16 +245,16 @@ def _checkConflicts(scoreKey, scoreValue, scoreTime, scoreReviewKey, playerKey):
                     if conflict.scoreValue != scoreValue or conflict.scoreTime != scoreTime:
                         cheaters.append(ReviewConflict.player.get_value_for_datastore(conflict))
                         conflict.delete()
-                score.delete()
+                scoreToReview.delete()
                 db.delete(Key.from_path('PendingScore', 'pendingScore', parent = reviewedPlayerKey))
-                db.delete(scoreReviewKey)
                 conflictResolved = True
                 break
 
         if not conflictResolved:
-            newConflict = ReviewConflict(player=playerKey,scoreValue=scoreValue,scoreTime=scoreTime, parent=scoreReviewKey)
+            scoreToReview.conflictingReviewers.append(playerId)
+            scoreToReview.put()
+            newConflict = ReviewConflict(player=playerKey,scoreValue=scoreValue,scoreTime=scoreTime, parent=scoreToReview)
             newConflict.put()
 
-        # TODO : remove reviewer from ScoreReview.potentialReviewers ( costly but necessary ? need to do that only if the ScoreReview need to be kept (conflict present)
 
     return cheaters

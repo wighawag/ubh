@@ -9,6 +9,9 @@ from helper.googleUser import setCurrentUser, logoutCurrentUser
 
 from helper.amf import executeService, getMessageFromResponse, isResponseBad
 from helper.html import getFlashVarsFromResponse
+from stats.model import setReviewTimeUnit
+
+import time
 
 #from pyamf.amf3 import ByteArray
 
@@ -51,11 +54,12 @@ class Test(unittest.TestCase):
         response = self.executeSessionTokenService({'sessionToken' : 'non existing token' , 'playerId' : 'non authenticated playerID'}, "score.service.echo", "hello")
         self.assertTrue(isResponseBad(response))
 
-    def test_userSetScoreOtherDoNotRetrieveIt(self):
+    def test_userSetScoreOtherDoNotRetrieveItIfTimeUnitNotPassed(self):
 
+        setReviewTimeUnit(5000)
         seed = self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
 
-        score = {'score' : 3, 'proof' : "sdsd", 'time' : 3}
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
 
         #set score (score, actions)
         self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.setScore", score)
@@ -63,36 +67,48 @@ class Test(unittest.TestCase):
 
         ## get a random score (seed, score, actions) and it should not match
         answer = self.executeGoogleUserSecureService("player2@mail.com", "player2", "score.service.getRandomScore")
-        self.assertFalse('score' in answer and score['score'] == answer['score']
-                         and 'proof' in answer and score['proof'] == answer['proof']
-                         and 'time' in answer and score['time'] == answer['time']
-                         and 'seed' in answer and seed == answer['seed']
-                         )
+        self.assertFalse('proof' in answer and score['proof'] == answer['proof'] and 'seed' in answer and seed == answer['seed'])
 
-    def test_userSetScoreOtherRetrieveItAfterManyPlayerPlayed(self):
-        self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
+    def test_userSetScoreOtherRetrieveItIfTimeUnitPassed(self):
+
+        setReviewTimeUnit(3000)
+        seed = self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
+
         score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
+
+        #set score (score, actions)
         self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.setScore", score)
 
-        # loop many players :
-        match = False
-        counter = 2
-        while not match:
-            ## get a random score (seed, score, actions) and it should match at some point
+        time.sleep(3)
 
-            answer = self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.getRandomScore")
-            if answer != {}:
-                match = (answer['proof'] == score['proof']) # check whether they are assigned to review the first player's score
+        ## get a random score (seed, score, actions) and it should match
+        answer = self.executeGoogleUserSecureService("player2@mail.com", "player2", "score.service.getRandomScore")
+        self.assertTrue('proof' in answer and score['proof'] == answer['proof'] and 'seed' in answer and seed == answer['seed'])
 
-            self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.start")
-            checkerScore = {'score' : 10, 'proof' : "sdsdsdsdsd" +str(counter), 'time' : 0}
-            self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.setScore", checkerScore)
-
-            counter += 1
-            if (counter > 90):
-                break
-
-        self.assertTrue(75 < counter < 85)
+#    def test_userSetScoreOtherRetrieveItAfterManyPlayerPlayed(self):
+#        self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
+#        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
+#        self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.setScore", score)
+#
+#        # loop many players :
+#        match = False
+#        counter = 2
+#        while not match:
+#            ## get a random score (seed, score, actions) and it should match at some point
+#
+#            answer = self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.getRandomScore")
+#            if answer != {}:
+#                match = (answer['proof'] == score['proof']) # check whether they are assigned to review the first player's score
+#
+#            self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.start")
+#            checkerScore = {'score' : 10, 'proof' : "sdsdsdsdsd" +str(counter), 'time' : 0}
+#            self.executeGoogleUserSecureService("player" + str(counter) + "@mail.com", "player" + str(counter), "score.service.setScore", checkerScore)
+#
+#            counter += 1
+#            if (counter > 90):
+#                break
+#
+#        self.assertTrue(75 < counter < 85)
 
 
 
