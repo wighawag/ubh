@@ -21,6 +21,8 @@ from score.reviewconflict import ReviewConflict
 
 from stats.model import getReviewTimeUnit
 
+from math import ceil
+
 
 MAX_AS3_UINT_VALUE = 4294967295;
 
@@ -39,21 +41,11 @@ def start(playerId):
         playSession = PlaySession(key_name='playSession', seed=random.randint(1, MAX_AS3_UINT_VALUE), seedDateTime=datetime.datetime.now(), parent=playerKey)
         playSession.put()
 
-        # TODO : should it be moved into session management ?
-        # Calculate the max time to wait for this player to be considered as a potential reviewers.
-        # Basically we calculate the probable time the player will come back
-        # and use this to grab it when we need score to be reviewed.
-        # if the player is expected to come during that period we add it to the potential reviewers
-        # otherwise we ignore it
-        now = datetime.datetime.now()
         today = datetime.date.today()
         playerRecord = Record.get_by_key_name('record', parent=playerKey)
         if playerRecord.lastDayPlayed != today:
-            numDaysSinceCreation = (now - playerRecord.creationDateTime).days
             playerRecord.numDaysPlayed += 1
             playerRecord.lastDayPlayed = today
-            playerRecord.maxWaitingDateTime = now + datetime.timedelta(days=2 * (numDaysSinceCreation/playerRecord.numDaysPlayed))
-            playerRecord.numScoreReviewedToday = 0 # TODO : definitively make it session based since if player do not start it might not be able to review score
             playerRecord.put()
 
         return playSession.seed
@@ -127,16 +119,23 @@ def getRandomScore(playerId):
     playerRecord = Record.get_by_key_name('record', parent=playerKey)
 
     # do not review if you are a cheater or if you already reviewed 10 scores
-    if playerRecord.numCheat > 0 or playerRecord.numScoreReviewed >= 10: # TODO : why 10 max numReview per day ?
+    if playerRecord.numCheat > 0:
         return {} # TODO : if player is considered cheater, should we give him/her some reviews?
+
+    reviewTimeUnitMilliseconds = getReviewTimeUnit()
+    reviewTimeUnit = datetime.timedelta(milliseconds=reviewTimeUnitMilliseconds)
+    now =datetime.datetime.now()
+    oldEnoughTime = now - reviewTimeUnit
+
+    if playerRecord.lastReviewDateTime is not None and playerRecord.lastReviewDateTime > oldEnoughTime:
+        # TODO : check whethe rthis randomize stuff is good or not:
+        return {'retry' : 2000 + random.random() * 5000  + ceil(reviewTimeUnitMilliseconds * (1 + random.random() * 2)) }
 
 
     reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
     if reviewSession is None:
         # do not allow reviewer to jump on a just posted review. basically the reviewer should have lots of potential review to take from and other reviewer shoudl compete with
-        reviewTimeUnit = getReviewTimeUnit()
-        lastDateTime = datetime.datetime.now() - datetime.timedelta(milliseconds=reviewTimeUnit)
-        potentialScoresToReview = db.GqlQuery("SELECT FROM NonVerifiedScore WHERE dateTime < :lastDateTime ORDER BY dateTime ASC", lastDateTime=lastDateTime).fetch(5)
+        potentialScoresToReview = db.GqlQuery("SELECT FROM NonVerifiedScore WHERE dateTime < :oldEnoughTime ORDER BY dateTime ASC", oldEnoughTime=oldEnoughTime).fetch(5)
 
         scoreToReview = None
         for score in potentialScoresToReview:
@@ -182,7 +181,7 @@ def reviewScore(playerId, score):
     def _increaseNumScoreReviewed():
         playerRecord = Record.get_by_key_name('record', parent=playerKey)
         playerRecord.numScoreReviewed += 1
-        playerRecord.numScoreReviewedToday += 1
+        playerRecord.lastReviewDateTime = datetime.datetime.now()
         playerRecord.put()
     db.run_in_transaction(_increaseNumScoreReviewed)
 

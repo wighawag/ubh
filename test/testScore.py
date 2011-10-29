@@ -4,6 +4,9 @@ from score.model import VerifiedScore, NonVerifiedScore
 from score import service
 from player.model import createPlayer, ReviewSession, PendingScore, Record
 from google.appengine.api.datastore_types import Key
+from stats.model import setReviewTimeUnit
+
+from time import sleep
 
 class Test(unittest.TestCase):
 
@@ -226,6 +229,33 @@ class Test(unittest.TestCase):
         playerKey = Key.from_path('Player', playerId)
         pendingScore = PendingScore.get_by_key_name('pendingScore', parent=playerKey)
         self.assertEqual(pendingScore, None)
+
+    def test_given_aReviewerReviewingTwoTimesTooQuickly_ItShouldBeAskedToRetryLater(self):
+
+        setReviewTimeUnit(2000)
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
+        playerId = "test1"
+        createPlayer(playerId, playerId)
+        service.start(playerId)
+        service.setScore(playerId, score)
+
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
+        playerId = "test2"
+        createPlayer(playerId, playerId)
+        service.start(playerId)
+        service.setScore(playerId, score)
+
+        createPlayer("reviewer1", "reviewer1")
+
+        sleep(3)
+
+        service.getRandomScore("reviewer1")
+        service.reviewScore("reviewer1", {'score':3, 'time': 0})
+
+        response= service.getRandomScore("reviewer1")
+
+        self.assertTrue('retry' in response and response['retry'] > 0)
+
 
 
 

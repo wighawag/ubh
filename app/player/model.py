@@ -17,11 +17,10 @@ class Record(db.Model):
     creationDateTime = db.DateTimeProperty(auto_now_add=True)
 
     numScoreReviewed = db.IntegerProperty(default=0)
-    numScoreReviewedToday = db.IntegerProperty(default=0)
+    lastReviewDateTime = db.DateTimeProperty()
 
     numDaysPlayed = db.IntegerProperty(default=0)
     lastDayPlayed = db.DateProperty()
-    maxWaitingDateTime = db.DateTimeProperty()
 
 # child of Player with key_name='playSession'
 class PlaySession(db.Model):
