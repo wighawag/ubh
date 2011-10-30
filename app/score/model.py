@@ -10,6 +10,7 @@ class VerifiedScore(db.Model):
     dateTime = db.DateTimeProperty(auto_now_add=True)
     conflictingReviewers = db.StringListProperty()
     verifier = db.StringProperty(required=True)
+    approvedByAdmin = db.BooleanProperty(required=True)
 
 # Need to be child of a Player
 #  - a nonVerified score which is store as a reference in PendingScore.nonVerifiedScore  (might be None if no score has been submited)

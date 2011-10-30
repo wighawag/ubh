@@ -1,6 +1,6 @@
 from google.appengine.ext import db
 
-from score.model import NonVerifiedScore
+from score.model import NonVerifiedScore, VerifiedScore
 
 class Player(db.Model):
     nickname = db.StringProperty(required=True)
@@ -9,6 +9,10 @@ class Player(db.Model):
 # child of Player with key_name='pendingScore'
 class PendingScore(db.Model):
     nonVerified = db.ReferenceProperty(NonVerifiedScore,required=True)
+
+# child of Player with key_name='verifiedScore'
+class VerifiedScoreWrapper(db.Model):
+    verified = db.ReferenceProperty(VerifiedScore,required=True)
 
 # child of Player with key_name='record'
 class Record(db.Model):
@@ -30,6 +34,12 @@ class PlaySession(db.Model):
 # child of Player with key_name='reviewSession'
 class ReviewSession(db.Model):
     currentScoreToReview = db.ReferenceProperty(NonVerifiedScore,required=True)
+
+
+# child of Player with key_name='approveSession'
+#use only by admin to approve already verified scores
+class ApproveSession(db.Model):
+    currentScoreToApprove = db.ReferenceProperty(VerifiedScore,required=True)
 
 
 def createPlayer(userId, nickname):

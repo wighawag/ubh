@@ -24,6 +24,11 @@ handlers:
   script : cron/clearOldReviewTimeUnitWeights.py
   login: admin
 
+- url: /admin/setPlayerAsAdmin
+  script : admin/setPlayerAsAdmin.py
+  login: admin
+
+
 - url: /.*
   script: app.py
 

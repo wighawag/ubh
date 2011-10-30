@@ -1,6 +1,7 @@
 #######################################
 ## Test purpose #######################
 #######################################
+from admin.model import getAdmin
 def echo(playerId, data):
     return "player " + playerId + " : " + data
 #######################################
@@ -8,7 +9,8 @@ def echo(playerId, data):
 #######################################
 
 from google.appengine.api.datastore_errors import TransactionFailedError
-from score.errors import getErrorResponse, TOO_MANY_REVIEWS, NOTHING_TO_REVIEW, CHEATER_BLOCKED, SCORE_TOO_SMALL, NO_PLAYER_SESSION, NOT_ENOUGH_TIME, TOO_MUCH_TIME, TRANSACTION_FAILURE
+from score.errors import getErrorResponse, TOO_MANY_REVIEWS, NOTHING_TO_REVIEW, CHEATER_BLOCKED, SCORE_TOO_SMALL, NO_PLAYER_SESSION, NOT_ENOUGH_TIME, TOO_MUCH_TIME, TRANSACTION_FAILURE,\
+    ADMIN_ONLY
 
 import random
 import datetime
@@ -16,7 +18,8 @@ import datetime
 from google.appengine.api.datastore_types import Key
 
 from score.model import VerifiedScore, NonVerifiedScore
-from player.model import PlaySession, PendingScore, Record, ReviewSession
+from player.model import PlaySession, PendingScore, Record, ReviewSession,\
+    ApproveSession, VerifiedScoreWrapper
 
 from google.appengine.ext import db
 
@@ -85,7 +88,11 @@ def setScore(playerId, score):
 
     def _setScore():
         playSession.delete()
-        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
+
+        verifiedScore = None
+        verifiedScoreWrapper = VerifiedScoreWrapper.get_by_key_name("verifiedScore", parent=playerKey)
+        if verifiedScoreWrapper is not None:
+            verifiedScore = verifiedScoreWrapper.verified
 
         if verifiedScore is None or scoreValue > verifiedScore.value:
             pendingScore = PendingScore.get_by_key_name("pendingScore", parent=playerKey)
@@ -169,7 +176,15 @@ def getRandomScore(playerId):
     return {'success' : True, 'message' : 'Nothing to review for now'}
 
 
-def reviewScore(playerId, score):
+def reviewScore(playerId, score, adminMode=False):
+
+    if adminMode:
+        admin = getAdmin()
+        try:
+            admin.playerList.index(playerId)
+        except ValueError:
+            return getErrorResponse(ADMIN_ONLY)
+
     scoreValue = score['score']
     scoreTime = score['time']
     playerKey = Key.from_path('Player', playerId)
@@ -192,7 +207,7 @@ def reviewScore(playerId, score):
     db.run_in_transaction(_increaseNumScoreReviewed)
 
     try:
-        cheaters = db.run_in_transaction(_checkConflicts, scoreToReviewKey, scoreValue, scoreTime, playerId)
+        cheaters = db.run_in_transaction(_checkConflicts, scoreToReviewKey, scoreValue, scoreTime, playerId, adminMode)
     except TransactionFailedError:
         return getErrorResponse(TRANSACTION_FAILURE, 0)
 
@@ -207,7 +222,7 @@ def reviewScore(playerId, score):
 
     return {'success' : True, 'message' : 'review submited'}
 
-def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId):
+def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId, adminMode):
     playerKey = Key.from_path('Player', playerId)
 
     scoreToReview = db.get(scoreToReviewKey)
@@ -219,8 +234,15 @@ def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId):
     if scoreToReview.value == scoreValue and scoreToReview.time == scoreTime:
         # delete the score (unverified) and reset a verifiedScore
         reviewedPlayerKey = scoreToReview.parent_key()
-        verifiedScore = VerifiedScore(key_name="verified", parent=reviewedPlayerKey, value=scoreToReview.value, proof=scoreToReview.proof, time=scoreToReview.time, seed=scoreToReview.seed, conflictingReviewers=scoreToReview.conflictingReviewers, verifier=playerId)
+        verifiedScore = VerifiedScore(parent=reviewedPlayerKey, value=scoreToReview.value, proof=scoreToReview.proof, time=scoreToReview.time, seed=scoreToReview.seed, conflictingReviewers=scoreToReview.conflictingReviewers, verifier=playerId, approvedByAdmin=adminMode)
         verifiedScore.put()
+        verifiedScoreWrapper = VerifiedScoreWrapper.get_by_key_name("verifiedScore", parent=reviewedPlayerKey)
+        if verifiedScoreWrapper is None:
+            verifiedScoreWrapper = VerifiedScoreWrapper(key_name='verifiedScore', parent=reviewedPlayerKey, verified=verifiedScore)
+        else:
+            verifiedScoreWrapper.verified.delete()
+            verifiedScoreWrapper.verified = verifiedScore
+        verifiedScoreWrapper.put()
         reviewedPlayerRecord = Record.get_by_key_name('record', parent=reviewedPlayerKey)
         reviewedPlayerRecord.numScoreVerified += 1
         reviewedPlayerRecord.put()
@@ -228,7 +250,7 @@ def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId):
         #delete conflicts and set conflicting reviewers as cheater
         conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :score", score=scoreToReview).fetch(100) # shoud not be more than 2
         for conflict in conflicts:
-            if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey:
+            if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey and not adminMode:
                 pass #TODO : raise Exception("this player has been able to review two times the same score!")
             if conflict.scoreValue != scoreValue or conflict.scoreTime != scoreTime:
                 cheaters.append(ReviewConflict.player.get_value_for_datastore(conflict))
@@ -238,27 +260,32 @@ def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId):
     else:
         #check whether a conflict exist with the same score value, if that is the case, player has cheated
         conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :score", score=scoreToReview).fetch(100) # should not be more than 3
-        for conflict in conflicts:
-            if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey:
-                pass #TODO : raise Exception("this player has been able to review two times the same score!")
-            elif conflict.scoreValue == scoreValue and conflict.scoreTime == scoreTime:
-                #player is a cheater
-                reviewedPlayerKey = scoreToReview.parent_key()
-                reviewedPlayerRecord = Record.get_by_key_name('record', parent=reviewedPlayerKey)
-                reviewedPlayerRecord.numCheat+=1
-                reviewedPlayerRecord.put()
 
-                #remove stuffs and assign cheater status to reviewer
-                for conflict in conflicts:
-                    if conflict.scoreValue != scoreValue or conflict.scoreTime != scoreTime:
-                        cheaters.append(ReviewConflict.player.get_value_for_datastore(conflict))
-                    conflict.delete()
-                scoreToReview.delete()
-                db.delete(Key.from_path('PendingScore', 'pendingScore', parent = reviewedPlayerKey))
-                conflictResolved = True
-                break
+        if adminMode:
+            conflictResolved = True # player is cheater no need to check anything else
+        else:
+            for conflict in conflicts:
+                if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey:
+                    pass #TODO : raise Exception("this player has been able to review two times the same score!")
+                elif conflict.scoreValue == scoreValue and conflict.scoreTime == scoreTime:
+                    conflictResolved = True
+                    break
 
-        if not conflictResolved:
+        #player is a cheater
+        if conflictResolved:
+            reviewedPlayerKey = scoreToReview.parent_key()
+            reviewedPlayerRecord = Record.get_by_key_name('record', parent=reviewedPlayerKey)
+            reviewedPlayerRecord.numCheat+=1
+            reviewedPlayerRecord.put()
+            #remove stuffs and assign cheater status to reviewer
+            for conflict in conflicts:
+                if conflict.scoreValue != scoreValue or conflict.scoreTime != scoreTime:
+                    cheaters.append(ReviewConflict.player.get_value_for_datastore(conflict))
+                conflict.delete()
+            scoreToReview.delete()
+            db.delete(Key.from_path('PendingScore', 'pendingScore', parent = reviewedPlayerKey))
+
+        else:
             scoreToReview.conflictingReviewers.append(playerId)
             scoreToReview.put()
             newConflict = ReviewConflict(player=playerKey,scoreValue=scoreValue,scoreTime=scoreTime, parent=scoreToReview)
@@ -266,3 +293,87 @@ def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId):
 
 
     return cheaters
+
+def getHighestNonApprovedScore(playerId):
+    admin = getAdmin()
+    try:
+        admin.playerList.index(playerId)
+    except ValueError:
+        return getErrorResponse(ADMIN_ONLY)
+
+
+    scoreToApprove = db.GqlQuery("SELECT FROM VerifiedScore WHERE approvedByAdmin = False ORDER BY value DESC").get()
+
+    if scoreToApprove is not None:
+        playerKey = Key.from_path('Player', playerId)
+        approveSession = ApproveSession(key_name='approveSession', currentScoreToApprove=scoreToApprove, parent=playerKey)
+        approveSession.put()
+
+    return {'success' : True, 'proof' : scoreToApprove.proof, 'seed' : scoreToApprove.seed}
+
+def approveScore(playerId, score):
+    admin = getAdmin()
+    try:
+        admin.playerList.index(playerId)
+    except ValueError:
+        return getErrorResponse(ADMIN_ONLY)
+
+    scoreValue = score['score']
+    scoreTime = score['time']
+    playerKey = Key.from_path('Player', playerId)
+    approveSession = ApproveSession.get_by_key_name('approveSession', parent=playerKey)
+
+    if approveSession is None:
+        return getErrorResponse(NOTHING_TO_REVIEW)
+
+    scoreToApproveKey = ApproveSession.currentScoreToApprove.get_value_for_datastore(approveSession)
+    # We are done with it
+    approveSession.delete()
+
+    def _approveScore():
+        scoreToApprove = db.get(scoreToApproveKey)
+        if scoreToApprove is None:
+            return {'cheater' : None, 'nonCheaters': []}
+
+        approvedPlayerKey = scoreToApprove.parent_key()
+
+        cheater = None
+        nonCheaters = []
+        if scoreToApprove.value == scoreValue and scoreToApprove.time == scoreTime:
+            scoreToApprove.approvedByAdmin = True
+            scoreToApprove.put()
+        else:
+            approvedPlayerRecord = Record.get_by_key_name('record', parent=approvedPlayerKey)
+            approvedPlayerRecord.numCheat += 1
+            approvedPlayerRecord.put()
+            cheater = Key.from_path('Player', scoreToApprove.verifier)
+            for nonCheaterId in scoreToApprove.conflictingReviewers:
+                nonCheaters.append(Key.from_path('Player', nonCheaterId))
+            scoreToApprove.delete()
+            db.delete(Key.from_path('VerifiedScoreWrapper', 'verifiedScore', parent = approvedPlayerKey))
+
+        return {'cheater' : cheater, 'nonCheaters': nonCheaters}
+
+    try:
+        result = db.run_in_transaction(_approveScore)
+    except TransactionFailedError:
+        return getErrorResponse(TRANSACTION_FAILURE, 0)
+
+    cheater = result['cheater']
+    nonCheaters = result['nonCheaters']
+
+    if cheater is not None:
+        cheaterRecord = Record.get_by_key_name('record', parent=cheater)
+        cheaterRecord.numCheat+=1
+        cheaterRecord.put()
+
+    if nonCheaters:
+        def _nonCheaterUpdate(nonCheaterKey):
+            cheaterRecord = Record.get_by_key_name('record', parent=nonCheaterKey)
+            cheaterRecord.numCheat-=1
+            cheaterRecord.put()
+
+        for nonCheaterKey in nonCheaters:
+            db.run_in_transaction(_nonCheaterUpdate,nonCheaterKey)
+
+    return {'success' : True, 'message' : 'approvement submited'}

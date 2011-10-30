@@ -6,6 +6,7 @@ NOT_ENOUGH_TIME =  {'code' : 2001, 'message' : "you would not had enough time to
 TOO_MUCH_TIME =  {'code' : 2002, 'message' : "you have spend too much time to play such score"}
 TRANSACTION_FAILURE = {'code': 1, 'message': 'transaction failure, try again'}
 NOTHING_TO_REVIEW = {'code':300 , 'message' : 'Nothing to review for now'}
+ADMIN_ONLY = {'code':4001 , 'message' : 'Only admin are allowed here'}
 
 def getErrorResponse(error, retry = -1):
     return {'success' : False, 'error': error['code'], 'message' : error['message'], 'retry': retry}

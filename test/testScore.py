@@ -2,11 +2,13 @@ import unittest
 from google.appengine.ext import testbed, db
 from score.model import VerifiedScore
 from score import service
-from player.model import createPlayer, ReviewSession, PendingScore, Record
+from player.model import createPlayer, ReviewSession, PendingScore, Record,\
+    VerifiedScoreWrapper
 from google.appengine.api.datastore_types import Key
 from stats.model import setReviewTimeUnit
 
 from time import sleep
+from admin.model import getAdmin, setAdmin
 
 class Test(unittest.TestCase):
 
@@ -31,7 +33,8 @@ class Test(unittest.TestCase):
 
         createReviewerAndReview("test2", playerKey, {'score':3, 'time': 0})
 
-        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
+        verifiedScoreWrapper = VerifiedScoreWrapper.get_by_key_name('verifiedScore', parent=playerKey)
+        verifiedScore = verifiedScoreWrapper.verified
         self.assertEqual(verifiedScore.value, score['score'])
 
 
@@ -87,7 +90,8 @@ class Test(unittest.TestCase):
 
         createReviewerAndReview("test3", playerKey, {'score':3, 'time': 0})
 
-        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
+        verifiedScoreWrapper = VerifiedScoreWrapper.get_by_key_name('verifiedScore', parent=playerKey)
+        verifiedScore = verifiedScoreWrapper.verified
         self.assertEqual(verifiedScore.value, 3)
 
         playerKey = Key.from_path('Player', 'test2')
@@ -135,7 +139,8 @@ class Test(unittest.TestCase):
 
         createReviewerAndReview("test4", playerKey, {'score':3, 'time': 0})
 
-        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
+        verifiedScoreWrapper = VerifiedScoreWrapper.get_by_key_name('verifiedScore', parent=playerKey)
+        verifiedScore = verifiedScoreWrapper.verified
         self.assertEqual(verifiedScore.value, 3)
 
         playerKey = Key.from_path('Player', 'test2')
@@ -256,6 +261,134 @@ class Test(unittest.TestCase):
 
         self.assertTrue('retry' in response and response['retry'] > 0)
 
+    def test_given_aReviewerTryingToReviewAsAdmin_ItShouldBeGivenAnError(self):
+
+        setReviewTimeUnit(0)
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
+        playerId = "test1"
+        createPlayer(playerId, playerId)
+        service.start(playerId)
+        service.setScore(playerId, score)
+
+        createPlayer("reviewer1", "reviewer1")
+
+        service.getRandomScore("reviewer1")
+        response = service.reviewScore("reviewer1", {'score':3, 'time': 0}, True)
+
+
+        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == 4001)
+
+    def test_given_aAdminReviewerTryingToReviewAsAdmin_ItShouldSucceed(self):
+
+        setReviewTimeUnit(0)
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
+        playerId = "test1"
+        createPlayer(playerId, playerId)
+        service.start(playerId)
+        service.setScore(playerId, score)
+
+        createPlayer("reviewer1", "reviewer1")
+
+        admin = getAdmin()
+        admin.playerList.append('reviewer1')
+        setAdmin(admin)
+
+        service.getRandomScore("reviewer1")
+        response = service.reviewScore("reviewer1", {'score':3, 'time': 0}, True)
+
+
+        self.assertTrue('success' in response and response['success'] == True)
+
+        playerKey = Key.from_path('Player', playerId)
+        verifiedScoreWrapper = VerifiedScoreWrapper.get_by_key_name('verifiedScore', parent=playerKey)
+        verifiedScore = verifiedScoreWrapper.verified
+        self.assertEqual(verifiedScore.value, 3)
+        self.assertEqual(verifiedScore.approvedByAdmin, True)
+
+    def test_given_aAdminReviewerTryingToReviewAsAdmin_ItShouldSucceedAndDeclareNonAgreeingConflictingReviewerAsCheaters(self):
+
+        setReviewTimeUnit(0)
+        score = {'score' : 99, 'proof' : "sdsd", 'time' : 0}
+        playerId = "test"
+        createPlayer(playerId, playerId)
+        service.start(playerId)
+        service.setScore(playerId, score)
+
+        playerKey = Key.from_path('Player', playerId)
+
+        createReviewerAndReview("test2", playerKey, {'score':3, 'time': 0})
+
+        createReviewerAndReview("test3", playerKey, {'score':999, 'time': 0})
+
+        createReviewerAndReview("test4", playerKey, {'score':3, 'time': 0}, True)
+
+
+        verifiedScore = VerifiedScore.get_by_key_name("verified", parent=playerKey)
+        playerRecord = Record.get_by_key_name('record', parent=playerKey)
+
+        self.assertTrue(verifiedScore is None or verifiedScore.value == 0)
+        self.assertEqual(playerRecord.numCheat, 1)
+
+
+        playerKey = Key.from_path('Player', 'test3')
+        playerRecord = Record.get_by_key_name('record', parent=playerKey)
+        self.assertEqual(playerRecord.numCheat, 1)
+
+        playerKey = Key.from_path('Player', 'test2')
+        playerRecord = Record.get_by_key_name('record', parent=playerKey)
+        self.assertEqual(playerRecord.numCheat, 0)
+
+    def test_given_aAdminReviewerDisapprovingAnAlreadyVerifiedScore_ItShouldDeclareVerifierAsACheaterAndOtherAsNonCheaters(self):
+
+        setReviewTimeUnit(0)
+        score = {'score' : 99, 'proof' : "sdsd", 'time' : 0}
+        playerId = "test"
+        createPlayer(playerId, playerId)
+        service.start(playerId)
+        service.setScore(playerId, score)
+
+        playerKey = Key.from_path('Player', playerId)
+
+        createReviewerAndReview("test2", playerKey, {'score':3, 'time': 0})
+
+        createReviewerAndReview("test3", playerKey, {'score':999, 'time': 0})
+
+        createReviewerAndReview("test4", playerKey, {'score':99, 'time': 0}) # verified
+
+
+        verifiedScoreWrapper = VerifiedScoreWrapper.get_by_key_name('verifiedScore', parent=playerKey)
+        verifiedScore = verifiedScoreWrapper.verified
+        playerRecord = Record.get_by_key_name('record', parent=playerKey)
+        self.assertTrue(verifiedScore.value == 99)
+        self.assertEqual(playerRecord.numCheat, 0)
+
+        createPlayer('admin1', 'admin1')
+        admin = getAdmin()
+        admin.playerList.append('admin1')
+        setAdmin(admin)
+        service.getHighestNonApprovedScore('admin1')
+
+        service.approveScore('admin1', {'score':3, 'time': 0})
+
+
+        verifiedScoreWrapper = VerifiedScoreWrapper.get_by_key_name('verifiedScore', parent=playerKey)
+        playerRecord = Record.get_by_key_name('record', parent=playerKey)
+        self.assertTrue(verifiedScoreWrapper is None)
+        self.assertEqual(playerRecord.numCheat, 1)
+
+        playerKey = Key.from_path('Player', 'test3')
+        playerRecord = Record.get_by_key_name('record', parent=playerKey)
+        self.assertEqual(playerRecord.numCheat, 0)
+
+        playerKey = Key.from_path('Player', 'test2')
+        playerRecord = Record.get_by_key_name('record', parent=playerKey)
+        self.assertEqual(playerRecord.numCheat, 0)
+
+        playerKey = Key.from_path('Player', 'test4')
+        playerRecord = Record.get_by_key_name('record', parent=playerKey)
+        self.assertEqual(playerRecord.numCheat, 1)
+
+
 
 
 
@@ -266,10 +399,14 @@ def assignScoreReview(reviewer, playerKey):
     reviewerSession.put()
     return scoreToReview
 
-def createReviewerAndReview(reviewerId, playerKey, scoreValue):
+def createReviewerAndReview(reviewerId, playerKey, scoreValue, adminMode = False):
     reviewer = createPlayer(reviewerId, reviewerId)
+    if adminMode:
+        admin = getAdmin()
+        admin.playerList.append(reviewerId)
+        setAdmin(admin)
     scoreToReview = assignScoreReview(reviewer, playerKey)
-    service.reviewScore(reviewerId, scoreValue)
+    service.reviewScore(reviewerId, scoreValue, adminMode)
     return scoreToReview
 
 if __name__ == "__main__":

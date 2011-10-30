@@ -1,5 +1,6 @@
-#Sat Oct 29 21:02:30 BST 2011
+#Sun Oct 30 13:22:37 GMT 2011
 eclipse.preferences.version=1
+encoding//app/admin/setPlayerAsAdmin.py=utf-8
 encoding//app/authentification/facebook/entryPoint.py=utf-8
 encoding//app/authentification/google/googleUserEntryPoint.py=utf-8
 encoding//app/cron/clearOldReviewTimeUnitWeights.py=utf-8
