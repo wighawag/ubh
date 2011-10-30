@@ -1,6 +1,6 @@
 import unittest
 from google.appengine.ext import testbed, db
-from score.model import VerifiedScore, NonVerifiedScore
+from score.model import VerifiedScore
 from score import service
 from player.model import createPlayer, ReviewSession, PendingScore, Record
 from google.appengine.api.datastore_types import Key

@@ -2,11 +2,12 @@ from google.appengine.ext import db
 from google.appengine.api import memcache
 
 class Stats(db.Model):
-    reviewTimeUnit = db.IntegerProperty(required=True)
+    reviewTimeUnit = db.IntegerProperty(required=True) #milliseconds
+    reviewTimeUnitWeight = db.IntegerProperty(default=1)
 
 
 def createStats():
-    stats = Stats(key_name='stats', reviewTimeUnit = 0)
+    stats = Stats(key_name='stats', reviewTimeUnit = 24 * 3600 * 1000)
 
     stats.put()
     protobuf = db.model_to_protobuf(stats)
@@ -26,6 +27,10 @@ def getStats():
             return stats
     return createStats()
 
+def setStats(stats):
+    stats.put()
+    protobuf = db.model_to_protobuf(stats)
+    memcache.set('stats', protobuf)
 
 def getReviewTimeUnit():
     stats = getStats()
@@ -34,6 +39,4 @@ def getReviewTimeUnit():
 def setReviewTimeUnit(value):
     stats = getStats()
     stats.reviewTimeUnit = value
-    stats.put()
-    protobuf = db.model_to_protobuf(stats)
-    memcache.set('stats', protobuf)
+    setStats(stats)

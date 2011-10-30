@@ -16,6 +16,14 @@ handlers:
 - url: /facebookCanvas/
   script : authentification/facebook/entryPoint.py
 
+- url: /cron/updateReviewTimeUnit
+  script : cron/updateReviewTimeUnit.py
+  login: admin
+
+- url: /cron/clearOldReviewTimeUnitWeights
+  script : cron/clearOldReviewTimeUnitWeights.py
+  login: admin
+
 - url: /.*
   script: app.py
 
