@@ -192,8 +192,8 @@ def reviewScore(playerId, score):
     db.run_in_transaction(_increaseNumScoreReviewed)
 
     try:
-        cheaters = db.run_in_transaction(_checkConflicts, scoreToReviewKey, scoreValue, scoreTime, playerId) # TODO : if fails tell the client to retry
-    except  TransactionFailedError:
+        cheaters = db.run_in_transaction(_checkConflicts, scoreToReviewKey, scoreValue, scoreTime, playerId)
+    except TransactionFailedError:
         return getErrorResponse(TRANSACTION_FAILURE, 0)
 
     if cheaters:
@@ -219,7 +219,7 @@ def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId):
     if scoreToReview.value == scoreValue and scoreToReview.time == scoreTime:
         # delete the score (unverified) and reset a verifiedScore
         reviewedPlayerKey = scoreToReview.parent_key()
-        verifiedScore = VerifiedScore(key_name="verified", parent=reviewedPlayerKey, value=scoreToReview.value, proof=scoreToReview.proof, time=scoreToReview.time, seed=scoreToReview.seed, conflictingReviewers=scoreToReview.conflictingReviewers)
+        verifiedScore = VerifiedScore(key_name="verified", parent=reviewedPlayerKey, value=scoreToReview.value, proof=scoreToReview.proof, time=scoreToReview.time, seed=scoreToReview.seed, conflictingReviewers=scoreToReview.conflictingReviewers, verifier=playerId)
         verifiedScore.put()
         reviewedPlayerRecord = Record.get_by_key_name('record', parent=reviewedPlayerKey)
         reviewedPlayerRecord.numScoreVerified += 1
@@ -229,10 +229,10 @@ def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId):
         conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :score", score=scoreToReview).fetch(100) # shoud not be more than 2
         for conflict in conflicts:
             if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey:
-                raise Exception("this player has been able to review two times the same score!")
+                pass #TODO : raise Exception("this player has been able to review two times the same score!")
             if conflict.scoreValue != scoreValue or conflict.scoreTime != scoreTime:
                 cheaters.append(ReviewConflict.player.get_value_for_datastore(conflict))
-                conflict.delete()
+            conflict.delete()
         scoreToReview.delete()
         conflictResolved = True
     else:
@@ -240,8 +240,8 @@ def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId):
         conflicts = ReviewConflict.gql("WHERE ANCESTOR IS :score", score=scoreToReview).fetch(100) # should not be more than 3
         for conflict in conflicts:
             if ReviewConflict.player.get_value_for_datastore(conflict) == playerKey:
-                raise Exception("this player has been able to review two times the same score!") # TODO : set reviewer as cheater (but this should not happen)
-            if conflict.scoreValue == scoreValue and conflict.scoreTime == scoreTime:
+                pass #TODO : raise Exception("this player has been able to review two times the same score!")
+            elif conflict.scoreValue == scoreValue and conflict.scoreTime == scoreTime:
                 #player is a cheater
                 reviewedPlayerKey = scoreToReview.parent_key()
                 reviewedPlayerRecord = Record.get_by_key_name('record', parent=reviewedPlayerKey)
@@ -252,7 +252,7 @@ def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId):
                 for conflict in conflicts:
                     if conflict.scoreValue != scoreValue or conflict.scoreTime != scoreTime:
                         cheaters.append(ReviewConflict.player.get_value_for_datastore(conflict))
-                        conflict.delete()
+                    conflict.delete()
                 scoreToReview.delete()
                 db.delete(Key.from_path('PendingScore', 'pendingScore', parent = reviewedPlayerKey))
                 conflictResolved = True

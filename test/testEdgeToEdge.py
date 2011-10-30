@@ -5,8 +5,6 @@ from webtest import TestApp
 
 from authentification.google.googleUserEntryPoint import application as googleUserApp
 
-from cron.updateReviewTimeUnit import application as updateReviewTimeUnitApp
-from cron.clearOldReviewTimeUnitWeights import application as clearOldReviewTimeUnitWeightsApp
 
 from google.appengine.ext import testbed
 from helper.googleUser import setCurrentUser, logoutCurrentUser
