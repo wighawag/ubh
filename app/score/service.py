@@ -7,6 +7,9 @@ def echo(playerId, data):
 #######################################
 #######################################
 
+from google.appengine.api.datastore_errors import TransactionFailedError
+from score.errors import getErrorResponse, TOO_MANY_REVIEWS, NOTHING_TO_REVIEW, CHEATER_BLOCKED, SCORE_TOO_SMALL, NO_PLAYER_SESSION, NOT_ENOUGH_TIME, TOO_MUCH_TIME, TRANSACTION_FAILURE
+
 import random
 import datetime
 
@@ -48,10 +51,12 @@ def start(playerId):
             playerRecord.lastDayPlayed = today
             playerRecord.put()
 
-        return playSession.seed
+        return {'success' : True, 'seed' : playSession.seed}
 
-    return db.run_in_transaction(_start) # Should not be needed since start and setScore should never be called at the same time an they are the only one who modify playSession
-    # TODO : if fails tell the client to retry
+    try:
+        return db.run_in_transaction(_start)
+    except TransactionFailedError:
+        return getErrorResponse(TRANSACTION_FAILURE, 0)
 
 def setScore(playerId, score):
 
@@ -63,7 +68,7 @@ def setScore(playerId, score):
 
     playSession = PlaySession.get_by_key_name('playSession', parent=playerKey)
     if playSession is None:
-        return "No play session started. start need to be called before setScore"
+        return getErrorResponse(NO_PLAYER_SESSION)
 
     seed = playSession.seed
     seedDateTime = playSession.seedDateTime
@@ -71,11 +76,11 @@ def setScore(playerId, score):
 
     # TODO : investigate: should we consider the player as cheater for this two exception  ?
     if seedDateTime + datetime.timedelta(seconds=scoreTime) > datetime.datetime.now():
-        return "you would not had enough time to play such score"
+        return getErrorResponse(NOT_ENOUGH_TIME)
 
     maxScoreTime = scoreTime + MINIMUM_TIME
     if seedDateTime + datetime.timedelta(seconds=maxScoreTime) < datetime.datetime.now():
-        return "you have spend too much time to play such score"
+        return getErrorResponse(TOO_MUCH_TIME)
 
 
     def _setScore():
@@ -102,15 +107,18 @@ def setScore(playerId, score):
                     pendingScore.nonVerified = nonVerifiedScore
                 pendingScore.put()
 
-                return "OK"
+                return {'success' : True}
             else:
                 pass # TODO : are you trying to cheat?
         else:
             pass # TODO : are you trying to cheat?
 
-        return "should not reach here except you are trying to post a smaller score (maybe to hide an earlier cheat)"
+        return getErrorResponse(SCORE_TOO_SMALL)
 
-    return db.run_in_transaction(_setScore) # TODO : if fails tell the client to retry
+    try:
+        return db.run_in_transaction(_setScore)
+    except TransactionFailedError:
+        return getErrorResponse(TRANSACTION_FAILURE, 0)
 
 
 def getRandomScore(playerId):
@@ -118,9 +126,9 @@ def getRandomScore(playerId):
     playerKey = Key.from_path('Player', playerId)
     playerRecord = Record.get_by_key_name('record', parent=playerKey)
 
-    # do not review if you are a cheater or if you already reviewed 10 scores
+    # do not review if you are a cheater
     if playerRecord.numCheat > 0:
-        return {} # TODO : if player is considered cheater, should we give him/her some reviews?
+        return getErrorResponse(CHEATER_BLOCKED)
 
     reviewTimeUnitMilliseconds = getReviewTimeUnit()
     reviewTimeUnit = datetime.timedelta(milliseconds=reviewTimeUnitMilliseconds)
@@ -129,7 +137,7 @@ def getRandomScore(playerId):
 
     if playerRecord.lastReviewDateTime is not None and playerRecord.lastReviewDateTime > oldEnoughTime:
         # TODO : check whethe rthis randomize stuff is good or not:
-        return {'retry' : 2000 + random.random() * 5000  + ceil(reviewTimeUnitMilliseconds * (1 + random.random() * 2)) }
+        return getErrorResponse(TOO_MANY_REVIEWS, 2000 + random.random() * 5000  + ceil(reviewTimeUnitMilliseconds * (1 + random.random() * 2)))
         # could be 2 * reviewTimeUnit / config.nbPlayerPerTimeUnit
 
     reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
@@ -147,20 +155,19 @@ def getRandomScore(playerId):
                     break
 
         if scoreToReview is None:
-            return {}
+            return {'success' : True, 'message' : 'Nothing to review for now'}
 
         reviewSession = ReviewSession(key_name='reviewSession', currentScoreToReview=scoreToReview, parent=playerKey)
         reviewSession.put()
-        # TODO : transaction and/or isolation : player mighcurrentScoreToReviewKeyt have been changed in the mean time : what about the above query?
-        # but this is probably unnecessary since the reviewSession is modified only by the same player in reviewScore (which should not be called in the same time as getRandomScore)
     else:
         scoreToReview = reviewSession.currentScoreToReview
 
     # in case score has been approved just now, it could have been removed
     if scoreToReview is not None:
-        return {'proof' : scoreToReview.proof, 'seed' : scoreToReview.seed}
+        return {'success' : True, 'proof' : scoreToReview.proof, 'seed' : scoreToReview.seed}
 
-    return {}
+    return {'success' : True, 'message' : 'Nothing to review for now'}
+
 
 def reviewScore(playerId, score):
     scoreValue = score['score']
@@ -169,8 +176,7 @@ def reviewScore(playerId, score):
     reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
 
     if reviewSession is None:
-        # TODO :nothing to review (should throw Exception) and potentially consider the player as cheater
-        return
+        return getErrorResponse(NOTHING_TO_REVIEW)
 
     scoreToReviewKey = ReviewSession.currentScoreToReview.get_value_for_datastore(reviewSession)
     # We are done with it
@@ -185,7 +191,10 @@ def reviewScore(playerId, score):
         playerRecord.put()
     db.run_in_transaction(_increaseNumScoreReviewed)
 
-    cheaters = db.run_in_transaction(_checkConflicts, scoreToReviewKey, scoreValue, scoreTime, playerId) # TODO : if fails tell the client to retry
+    try:
+        cheaters = db.run_in_transaction(_checkConflicts, scoreToReviewKey, scoreValue, scoreTime, playerId) # TODO : if fails tell the client to retry
+    except  TransactionFailedError:
+        return getErrorResponse(TRANSACTION_FAILURE, 0)
 
     if cheaters:
         def _cheaterUpdate(cheaterKey):
@@ -196,7 +205,7 @@ def reviewScore(playerId, score):
         for cheaterKey in cheaters:
             db.run_in_transaction(_cheaterUpdate,cheaterKey)
 
-
+    return {'success' : True, 'message' : 'review submited'}
 
 def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId):
     playerKey = Key.from_path('Player', playerId)

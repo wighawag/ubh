@@ -78,7 +78,8 @@ class Test(unittest.TestCase):
     def test_userSetScoreOtherRetrieveItIfTimeUnitPassed(self):
 
         setReviewTimeUnit(3000)
-        seed = self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
+        response = self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
+        seed= response['seed']
 
         score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
 

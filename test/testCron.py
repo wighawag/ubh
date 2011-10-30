@@ -3,7 +3,7 @@ import unittest
 from webtest import TestApp
 
 from cron.updateReviewTimeUnit import application as updateReviewTimeUnitApplication
-from cron.clearOldReviewTimeUnitWeights import application as clearOldReviewTimeUnitWeightsApplication
+#from cron.clearOldReviewTimeUnitWeights import application as clearOldReviewTimeUnitWeightsApplication
 
 from google.appengine.ext import testbed
 from helper.googleUser import setCurrentUser, logoutCurrentUser
@@ -24,7 +24,7 @@ class Test(unittest.TestCase):
         self.testbed.init_user_stub()
 
         self.updateReviewTimeUnitApp = TestApp(updateReviewTimeUnitApplication())
-        self.clearOldReviewTimeUnitWeightsApp = TestApp(clearOldReviewTimeUnitWeightsApplication())
+#        self.clearOldReviewTimeUnitWeightsApp = TestApp(clearOldReviewTimeUnitWeightsApplication())
 
     def tearDown(self):
         logoutCurrentUser()
