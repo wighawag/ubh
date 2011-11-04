@@ -6,7 +6,7 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
 
 import config
-from stats.model import  getStats, setStats
+from stats.model import  getStats, setStats, setDefaultStats
 from player.model import Record
 import datetime
 
@@ -15,16 +15,15 @@ class MainPage(webapp.RequestHandler):
     def get(self):
         stats = getStats()
 
-        lastPlayerRecords = Record.gql("WHERE lastReviewDateTime > :firstDate ORDER BY lastReviewDateTime DESC", firstDate=datetime.datetime.min).fetch(1, config.nbPlayerPerTimeUnit - 1)
+        lastPlayerRecords = Record.gql("WHERE lastReviewAttemptDateTime > :firstDate ORDER BY lastReviewAttemptDateTime DESC", firstDate=datetime.datetime.min).fetch(1, config.nbPlayerPerTimeUnit - 1)
 
         if lastPlayerRecords is None or len(lastPlayerRecords) == 0:
-            stats.reviewTimeUnit = 24 * 3600 * 1000
-            stats.reviewTimeUnitWeight = 0
+            stats = setDefaultStats()
         else:
             lastPlayerRecordConsidered = lastPlayerRecords[0]
             now = datetime.datetime.now()
 
-            timedelta = now - lastPlayerRecordConsidered.lastReviewDateTime
+            timedelta = now - lastPlayerRecordConsidered.lastReviewAttemptDateTime
 
             #milliseconds
             newReviewTimeUnit = (timedelta.microseconds + (timedelta.seconds + timedelta.days * 24 * 3600) * 10**6) / 10**3
@@ -33,7 +32,7 @@ class MainPage(webapp.RequestHandler):
             stats.reviewTimeUnit = (reviewTimeUnitWeight * stats.reviewTimeUnit + newReviewTimeUnit) / (reviewTimeUnitWeight + 1)
             stats.reviewTimeUnitWeight = reviewTimeUnitWeight + 1
 
-        setStats(stats)
+            setStats(stats)
 
         self.response.out.write(str(stats.reviewTimeUnit))
 

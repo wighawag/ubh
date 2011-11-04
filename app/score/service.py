@@ -131,21 +131,38 @@ def setScore(playerId, score):
 def getRandomScore(playerId):
 
     playerKey = Key.from_path('Player', playerId)
-    playerRecord = Record.get_by_key_name('record', parent=playerKey)
 
-    # do not review if you are a cheater
-    if playerRecord.numCheat > 0:
-        return getErrorResponse(CHEATER_BLOCKED)
+    def _updateLastReviewAttemptDateTime():
+        playerRecord = Record.get_by_key_name('record', parent=playerKey)
 
-    reviewTimeUnitMilliseconds = getReviewTimeUnit()
-    reviewTimeUnit = datetime.timedelta(milliseconds=reviewTimeUnitMilliseconds)
-    now =datetime.datetime.now()
-    oldEnoughTime = now - reviewTimeUnit
+        # do not review if you are a cheater
+        if playerRecord.numCheat > 0:
+            return getErrorResponse(CHEATER_BLOCKED)
 
-    if playerRecord.lastReviewDateTime is not None and playerRecord.lastReviewDateTime > oldEnoughTime:
-        # TODO : check whethe rthis randomize stuff is good or not:
-        return getErrorResponse(TOO_MANY_REVIEWS, 2000 + random.random() * 5000  + ceil(reviewTimeUnitMilliseconds * (1 + random.random() * 2)))
-        # could be 2 * reviewTimeUnit / config.nbPlayerPerTimeUnit
+        reviewTimeUnitMilliseconds = getReviewTimeUnit()
+        reviewTimeUnit = datetime.timedelta(milliseconds=reviewTimeUnitMilliseconds)
+        now =datetime.datetime.now()
+        oldEnoughTime = now - reviewTimeUnit
+
+        if playerRecord.lastReviewAttemptDateTime is not None and playerRecord.lastReviewAttemptDateTime > oldEnoughTime:
+            # TODO : check whethe rthis randomize stuff is good or not:
+            return getErrorResponse(TOO_MANY_REVIEWS, 2000 + random.random() * 5000  + ceil(reviewTimeUnitMilliseconds * (1 + random.random() * 2)))
+            # could be 2 * reviewTimeUnit / config.nbPlayerPerTimeUnit
+
+        playerRecord.lastReviewAttemptDateTime = datetime.datetime.now()
+        playerRecord.put()
+        return {'oldEnoughTime' : oldEnoughTime, 'error' : None}
+
+    result = None
+    try:
+        result = db.run_in_transaction(_updateLastReviewAttemptDateTime)
+    except TransactionFailedError:
+        result = getErrorResponse(TRANSACTION_FAILURE, 0)
+
+    if 'oldEnoughTime' in result:
+        oldEnoughTime = result['oldEnoughTime']
+    else:
+        return result
 
     reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
     if reviewSession is None:
@@ -202,7 +219,6 @@ def reviewScore(playerId, score, adminMode=False):
     def _increaseNumScoreReviewed():
         playerRecord = Record.get_by_key_name('record', parent=playerKey)
         playerRecord.numScoreReviewed += 1
-        playerRecord.lastReviewDateTime = datetime.datetime.now()
         playerRecord.put()
     db.run_in_transaction(_increaseNumScoreReviewed)
 

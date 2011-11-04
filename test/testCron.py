@@ -34,7 +34,7 @@ class Test(unittest.TestCase):
     def test_whetherTimeUnitIsInitializedWithHighNumber(self):
         setCurrentUser('test@mail.com', 'test', True)
         response = self.updateReviewTimeUnitApp.get('/cron/updateReviewTimeUnit')
-        value = str(24 * 3600 * 1000)
+        value = str(30 * 24 * 3600 * 1000)
         self.assertEqual(response.body, value)
 
     def test_whetherTimeUnitIsUpdatedProperly(self):

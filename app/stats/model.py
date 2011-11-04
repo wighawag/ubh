@@ -6,8 +6,15 @@ class Stats(db.Model):
     reviewTimeUnitWeight = db.IntegerProperty(default=1)
 
 
+def setDefaultStats():
+    stats = getStats()
+    stats.reviewTimeUnit = 30 * 24 * 3600 * 1000
+    stats.reviewTimeUnitWeight = 0
+    setStats(stats)
+    return stats
+
 def createStats():
-    stats = Stats(key_name='stats', reviewTimeUnit = 24 * 3600 * 1000)
+    stats = Stats(key_name='stats', reviewTimeUnit = 30 * 24 * 3600 * 1000)
 
     stats.put()
     protobuf = db.model_to_protobuf(stats)
