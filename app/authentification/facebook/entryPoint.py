@@ -16,11 +16,10 @@ from player.session import createPlayerSession
 
 from player.model import createPlayer
 
+from crypto.signature import verifySignature, base64_url_decode, decode_signedRequest
+
 import config
 
-import base64
-import hashlib
-import hmac
 import urllib
 
 # yoctomata
@@ -29,11 +28,19 @@ FACEBOOK_APP_SECRET = "fa45b2d9686d77a3ceb6f1d48761fd53"
 FACEBOOK_APP_API_KEY = "2114887b3cdc746e96b062d440bc4766"
 FACEBOOK_CANVAS_PAGE_URL = 'http://apps.facebook.com/yoctomata/' # need to switch to https in case https was requested
 
+
+
 class MainPage(webapp.RequestHandler):
 
     def post(self):
-        data = parse_signed_request(self.request.get("signed_request"),FACEBOOK_APP_SECRET)
-        if (not data.has_key("user_id")):
+
+        signedRequest = self.request.get("signed_request")
+        signature, payload = decode_signedRequest(signedRequest)
+
+        data = json.loads(base64_url_decode(payload))
+
+        verified = verifySignature(signature, payload, FACEBOOK_APP_SECRET, data.get('algorithm').upper())
+        if (not verified):
             args = {'client_id' : FACEBOOK_APP_ID , 'redirect_uri' : FACEBOOK_CANVAS_PAGE_URL}
             url = "https://www.facebook.com/dialog/oauth?" + urllib.urlencode(args)
             self.response.out.write('<script language="javascript">top.location.href="' + url + '"</script>')
@@ -67,32 +74,6 @@ class MainPage(webapp.RequestHandler):
             config.templatesPath + 'facebookCanvas.html',
             data))
 
-
-def base64_url_decode(inp):
-    padding_factor = (4 - len(inp) % 4) % 4
-    inp += "="*padding_factor
-    return base64.b64decode(unicode(inp).translate(dict(zip(map(ord, u'-_'), u'+/'))))
-
-def parse_signed_request(signed_request, secret):
-
-    l = signed_request.split('.', 2)
-    encoded_sig = l[0]
-    payload = l[1]
-
-    sig = base64_url_decode(encoded_sig)
-    data = json.loads(base64_url_decode(payload))
-
-    if data.get('algorithm').upper() != 'HMAC-SHA256':
-        #log.error('Unknown algorithm')
-        return None
-    else:
-        expected_sig = hmac.new(secret, msg=payload, digestmod=hashlib.sha256).digest()
-
-    if sig != expected_sig:
-        return None
-    else:
-        #log.debug('valid signed request received..')
-        return data
 
 def facebookApi(path, access_token, params=None, method=u'GET', domain=u'graph'):
     """Make API calls"""

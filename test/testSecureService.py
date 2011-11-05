@@ -7,9 +7,23 @@ from player.session import createPlayerSession, getPlayerSession, deletePlayerSe
 
 from pyamf.remoting.gateway import UnknownServiceMethodError
 
+from django.utils import simplejson as json
+
 import datetime
 
-from secureService import sessionTokenCall, InvalidSessionError, SessionExpiredError, NoActiveSessionError
+from secureService import sessionTokenCall, InvalidSessionError, SessionExpiredError, signedRequestCall
+
+from crypto.signature import create_HMACSHA256_Signature
+from encodings.base64_codec import base64_encode
+
+def createSignedRequest(playerId, secret, methodName, *args):
+    jsonData = json.dumps({u'playerId' : playerId, 'methodName' : methodName, 'args' : args} )
+    payload, length_consumed = base64_encode(jsonData)
+
+    signature = create_HMACSHA256_Signature(payload, secret)
+    encoded_signature, length_consumed = base64_encode(signature)
+
+    return encoded_signature + '.' + payload
 
 class Test(unittest.TestCase):
 
@@ -22,14 +36,14 @@ class Test(unittest.TestCase):
     def tearDown(self):
         self.testbed.deactivate()
 
-    def testCorrectSessionCall(self):
+    def testCorrectSessionTokenCall(self):
         playerId = "test"
         createPlayer(playerId, "test")
         session = createPlayerSession(playerId)
         answer = sessionTokenCall(session.token, playerId, 'score.service.echo', 'hello')
         self.assertEqual(answer, "player test : hello")
 
-    def testExpiredSessionCall(self):
+    def testExpiredSessionTokenCall(self):
         playerId = "test"
         createPlayer(playerId, "test")
         session = createPlayerSession(playerId, datetime=datetime.datetime.now() - DEFAULT_MAX_SESSION_LIFE_TIME)
@@ -37,17 +51,54 @@ class Test(unittest.TestCase):
         self.failUnlessRaises(SessionExpiredError, sessionTokenCall, session.token, playerId, 'score.service.echo', 'hello')
 
 
-    def testNonExistingMethodCall(self):
+    def testNonExistingMethodTokenCall(self):
         playerId = "test"
         createPlayer(playerId, "test")
         session = createPlayerSession(playerId)
         self.failUnlessRaises(UnknownServiceMethodError, sessionTokenCall, session.token, playerId, 'nonExisitingMehtod')
 
-    def testWrongSessionForPlayer(self):
+    def testWrongSessionTokenForPlayer(self):
         playerId = "test"
         createPlayer(playerId, "test")
         createPlayerSession(playerId)
         self.failUnlessRaises(InvalidSessionError, sessionTokenCall, "wrong token", playerId, 'score.service.echo', 'hello')
+
+
+
+
+
+    def testCorrectSessionSignedRequestCall(self):
+        playerId = "test"
+        createPlayer(playerId, "test")
+        session = createPlayerSession(playerId)
+
+        signedRequest = createSignedRequest(playerId, session.token, 'score.service.echo', 'hello') # TODO do not use token bu a special secret
+        answer = signedRequestCall(signedRequest)
+
+        self.assertEqual(answer, "player test : hello")
+
+    def testExpiredSessionSignedRequestCall(self):
+        playerId = "test"
+        createPlayer(playerId, "test")
+        session = createPlayerSession(playerId, datetime=datetime.datetime.now() - DEFAULT_MAX_SESSION_LIFE_TIME)
+
+        signedRequest = createSignedRequest(playerId, session.token, 'score.service.echo', 'hello') # TODO do not use token bu a special secret
+        self.failUnlessRaises(SessionExpiredError, signedRequestCall, signedRequest)
+
+
+    def testNonExistingMethodSignedRequestCall(self):
+        playerId = "test"
+        createPlayer(playerId, "test")
+        session = createPlayerSession(playerId)
+        signedRequest = createSignedRequest(playerId, session.token, 'nonExisitingMehtod') # TODO do not use token bu a special secret
+        self.failUnlessRaises(UnknownServiceMethodError, signedRequestCall, signedRequest)
+
+    def testWrongSessionSignedRequestForPlayer(self):
+        playerId = "test"
+        createPlayer(playerId, "test")
+        createPlayerSession(playerId)
+        signedRequest = createSignedRequest(playerId, "wrong secret", 'score.service.echo', 'hello')
+        self.failUnlessRaises(InvalidSessionError, signedRequestCall, signedRequest)
 
 
 if __name__ == "__main__":

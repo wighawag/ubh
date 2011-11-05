@@ -12,6 +12,8 @@ DEFAULT_MAX_SESSION_LIFE_TIME = datetime.timedelta(minutes=30) # need to be rege
 namespace = "PlayerSession"
 
 def createPlayerSession(playerId, datetime=None):
+    #TODO add signedRequest SECRET to use signedRequestCall instead of sessionTokenCall : str(random.getrandbits(32)) # should be more than 32 (we want 32 charecter, not bit)
+    # use token for now
     if datetime is None:
         session = PlayerSession(key_name=playerId, token=hashlib.md5(os.urandom(16)).hexdigest())
     else:
