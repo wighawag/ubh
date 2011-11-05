@@ -28,7 +28,7 @@ class Record(db.Model):
 
 # child of Player with key_name='playSession'
 class PlaySession(db.Model):
-    seed = db.IntegerProperty(required=True)
+    seed = db.ByteStringProperty(required=True)
     seedDateTime = db.DateTimeProperty(required=True)
 
 # child of Player with key_name='reviewSession'

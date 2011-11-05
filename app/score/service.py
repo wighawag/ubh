@@ -29,6 +29,8 @@ from stats.model import getReviewTimeUnit
 
 from math import ceil
 
+import struct
+
 
 MAX_AS3_UINT_VALUE = 4294967295;
 
@@ -37,14 +39,12 @@ MINIMUM_TIME = 10 # margin in seconds to send the data across
 def start(playerId):
 
     def _start():
-        # TODO : investigate what if user wait for a particular seed (that it trained with)
-        # solution : start should be followed by setScore most of the time and for low score, the seed is not regenerated (or loop through a finite set of seed) within the time limit required to have significant highscore?
-        # TODO : investigate what if user wait for a seed that has already a high score from another player?
-        # solution :: block highest score seeds
-
         playerKey = Key.from_path('Player', playerId)
 
-        playSession = PlaySession(key_name='playSession', seed=random.randint(1, MAX_AS3_UINT_VALUE), seedDateTime=datetime.datetime.now(), parent=playerKey)
+        rand = random.SystemRandom()
+        seed = struct.pack("4L", rand.randint(1, MAX_AS3_UINT_VALUE), rand.randint(1, MAX_AS3_UINT_VALUE), rand.randint(1, MAX_AS3_UINT_VALUE), rand.randint(1, MAX_AS3_UINT_VALUE))
+
+        playSession = PlaySession(key_name='playSession', seed=seed, seedDateTime=datetime.datetime.now(), parent=playerKey)
         playSession.put()
 
         today = datetime.date.today()
@@ -54,7 +54,8 @@ def start(playerId):
             playerRecord.lastDayPlayed = today
             playerRecord.put()
 
-        return {'success' : True, 'seed' : playSession.seed}
+        seedList = struct.unpack("4L", playSession.seed)
+        return {'success' : True, 'seed' : seedList}
 
     try:
         return db.run_in_transaction(_start)
@@ -188,7 +189,8 @@ def getRandomScore(playerId):
 
     # in case score has been approved just now, it could have been removed
     if scoreToReview is not None:
-        return {'success' : True, 'proof' : scoreToReview.proof, 'seed' : scoreToReview.seed}
+        seedList = struct.unpack("4L", scoreToReview.seed)
+        return {'success' : True, 'proof' : scoreToReview.proof, 'seed' : seedList}
 
     return {'success' : True, 'message' : 'Nothing to review for now'}
 
@@ -325,7 +327,10 @@ def getHighestNonApprovedScore(playerId):
         approveSession = ApproveSession(key_name='approveSession', currentScoreToApprove=scoreToApprove, parent=playerKey)
         approveSession.put()
 
-    return {'success' : True, 'proof' : scoreToApprove.proof, 'seed' : scoreToApprove.seed}
+        seedList = struct.unpack("4L", scoreToApprove.seed)
+        return {'success' : True, 'proof' : scoreToApprove.proof, 'seed' : seedList}
+
+    return {'success' : True, 'message' : 'Nothing to approve for now'}
 
 def approveScore(playerId, score):
     admin = getAdmin()
