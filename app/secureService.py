@@ -16,6 +16,8 @@ class InvalidSessionError(Exception):
 class NoActiveSessionError(Exception):
     pass
 
+class WrongSessionMethodError(Exception):
+    pass
 
 class SessionExpiredError(Exception):
     pass
@@ -30,6 +32,9 @@ def sessionTokenCall(sessionToken, playerId, methodName, *args):
 
     if playerSession is None:
         raise NoActiveSessionError("No Session Active for player: " + playerId) # session error
+
+    if playerSession.method != 'token' or playerSession.token is None:
+        raise WrongSessionMethodError("the session was not initialized with token method ")
 
     if sessionToken == playerSession.token:
         if playerSession.isExpired():
@@ -59,7 +64,10 @@ def signedRequestCall(signedRequest):
     if playerSession is None:
         raise NoActiveSessionError("No Session Active for player: " + playerId) # session error
 
-    verified = verifySignature(signature, payload, playerSession.token) ## use token for now as key
+    if playerSession.method != 'signedRequest' or playerSession.secret is None:
+        raise WrongSessionMethodError("the session was not initialized with signedRequest method ")
+
+    verified = verifySignature(signature, payload, playerSession.secret)
 
     if not verified:
         raise InvalidSessionError("Invalid Signature") # session error

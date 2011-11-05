@@ -39,14 +39,14 @@ class Test(unittest.TestCase):
     def testCorrectSessionTokenCall(self):
         playerId = "test"
         createPlayer(playerId, "test")
-        session = createPlayerSession(playerId)
+        session = createPlayerSession(playerId, 'token')
         answer = sessionTokenCall(session.token, playerId, 'score.service.echo', 'hello')
         self.assertEqual(answer, "player test : hello")
 
     def testExpiredSessionTokenCall(self):
         playerId = "test"
         createPlayer(playerId, "test")
-        session = createPlayerSession(playerId, datetime=datetime.datetime.now() - DEFAULT_MAX_SESSION_LIFE_TIME)
+        session = createPlayerSession(playerId, 'token', datetime=datetime.datetime.now() - DEFAULT_MAX_SESSION_LIFE_TIME)
 
         self.failUnlessRaises(SessionExpiredError, sessionTokenCall, session.token, playerId, 'score.service.echo', 'hello')
 
@@ -54,13 +54,13 @@ class Test(unittest.TestCase):
     def testNonExistingMethodTokenCall(self):
         playerId = "test"
         createPlayer(playerId, "test")
-        session = createPlayerSession(playerId)
+        session = createPlayerSession(playerId, 'token')
         self.failUnlessRaises(UnknownServiceMethodError, sessionTokenCall, session.token, playerId, 'nonExisitingMehtod')
 
     def testWrongSessionTokenForPlayer(self):
         playerId = "test"
         createPlayer(playerId, "test")
-        createPlayerSession(playerId)
+        createPlayerSession(playerId, 'token')
         self.failUnlessRaises(InvalidSessionError, sessionTokenCall, "wrong token", playerId, 'score.service.echo', 'hello')
 
 
@@ -70,9 +70,9 @@ class Test(unittest.TestCase):
     def testCorrectSessionSignedRequestCall(self):
         playerId = "test"
         createPlayer(playerId, "test")
-        session = createPlayerSession(playerId)
+        session = createPlayerSession(playerId, 'signedRequest')
 
-        signedRequest = createSignedRequest(playerId, session.token, 'score.service.echo', 'hello') # TODO do not use token bu a special secret
+        signedRequest = createSignedRequest(playerId, session.secret, 'score.service.echo', 'hello')
         answer = signedRequestCall(signedRequest)
 
         self.assertEqual(answer, "player test : hello")
@@ -80,23 +80,23 @@ class Test(unittest.TestCase):
     def testExpiredSessionSignedRequestCall(self):
         playerId = "test"
         createPlayer(playerId, "test")
-        session = createPlayerSession(playerId, datetime=datetime.datetime.now() - DEFAULT_MAX_SESSION_LIFE_TIME)
+        session = createPlayerSession(playerId, 'signedRequest', datetime=datetime.datetime.now() - DEFAULT_MAX_SESSION_LIFE_TIME)
 
-        signedRequest = createSignedRequest(playerId, session.token, 'score.service.echo', 'hello') # TODO do not use token bu a special secret
+        signedRequest = createSignedRequest(playerId, session.secret, 'score.service.echo', 'hello')
         self.failUnlessRaises(SessionExpiredError, signedRequestCall, signedRequest)
 
 
     def testNonExistingMethodSignedRequestCall(self):
         playerId = "test"
         createPlayer(playerId, "test")
-        session = createPlayerSession(playerId)
-        signedRequest = createSignedRequest(playerId, session.token, 'nonExisitingMehtod') # TODO do not use token bu a special secret
+        session = createPlayerSession(playerId, 'signedRequest')
+        signedRequest = createSignedRequest(playerId, session.secret, 'nonExisitingMehtod')
         self.failUnlessRaises(UnknownServiceMethodError, signedRequestCall, signedRequest)
 
     def testWrongSessionSignedRequestForPlayer(self):
         playerId = "test"
         createPlayer(playerId, "test")
-        createPlayerSession(playerId)
+        createPlayerSession(playerId, 'signedRequest')
         signedRequest = createSignedRequest(playerId, "wrong secret", 'score.service.echo', 'hello')
         self.failUnlessRaises(InvalidSessionError, signedRequestCall, signedRequest)
 

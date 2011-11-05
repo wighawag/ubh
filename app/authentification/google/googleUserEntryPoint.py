@@ -37,10 +37,21 @@ class MainPage(webapp.RequestHandler):
             googleUser = GoogleUser(key_name=userId, playerId=playerId)
             googleUser.put();
 
-        session = createPlayerSession(playerId)
+
+        if self.request.scheme == 'https':
+            method = 'signedRequest'
+        else:
+            method = 'token'
+        session = createPlayerSession(playerId, method)
+        if method == 'token':
+            flashvars = {u'method' : 'token', u'sessionToken' : session.token, u'playerId' : playerId}
+        elif method == 'signedRequest':
+            flashvars = {u'method' : 'signedRequest', u'secret' : session.secret, u'playerId' : playerId}
+
+
         name = "googleUser"
         data = {}
-        data[u'flashvars'] = json.dumps({u'sessionToken' : session.token, u'playerId' : playerId})
+        data[u'flashvars'] = json.dumps(flashvars)
         data[u'title'] = u'FJump (XJump remasterized)'
         self.response.out.write(template.render(
             config.templatesPath + name + '.html',

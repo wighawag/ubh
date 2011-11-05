@@ -55,19 +55,27 @@ class MainPage(webapp.RequestHandler):
                 facebookUser.put();
             playerId = facebookUser.playerId
         else:
-            # if the facebook user has more than X friends, then he is allowed to verify old scores (if any) directly
-            #friends = facebookApi(u'/me/friends', oauthToken)
-            #enoughFriend = len(friends.data) > 5
-
             player = createPlayer('facebook_' + userId, "nickName" + userId)
             playerId = player.key().id_or_name()
             facebookUser = FacebookUser(key_name=userId, playerId=playerId, oauthToken=oauthToken)
             facebookUser.put();
 
 
-        session = createPlayerSession(playerId)
+
+        if self.request.scheme == 'https':
+            method = 'signedRequest'
+        else:
+            method = 'token'
+        session = createPlayerSession(playerId, method)
+        if method == 'token':
+            flashvars = {u'method' : 'token', u'sessionToken' : session.token, u'playerId' : playerId, u'facebookOauthToken': oauthToken}
+        elif method == 'signedRequest':
+            flashvars = {u'method' : 'signedRequest', u'secret' : session.secret, u'playerId' : playerId, u'facebookOauthToken': oauthToken}
+
+
+
         data = {}
-        data[u'flashvars'] = json.dumps({u'sessionToken' : session.token, u'playerId' : playerId, u'facebookOauthToken': oauthToken})
+        data[u'flashvars'] = json.dumps(flashvars)
         data[u'title'] = u'FJump (XJump remasterized)'
         data[u'facebookAppId'] = FACEBOOK_APP_ID
         self.response.out.write(template.render(

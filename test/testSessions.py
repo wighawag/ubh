@@ -17,22 +17,22 @@ class Test(unittest.TestCase):
 
     def testGivenAPlayerIdCreateASessionThenRetrievIt(self):
         playerId = "randomId"
-        session = createPlayerSession(playerId)
+        session = createPlayerSession(playerId, 'signedRequest')
         getPlayerSession(playerId)
         self.assertEquals(session.key(), getPlayerSession(playerId).key())
 
     def testCreateASessionAndDeleteItWhenRetriveitReturnNone(self):
         playerId = "randomId3"
-        createPlayerSession(playerId)
+        createPlayerSession(playerId, 'signedRequest')
         deletePlayerSession(playerId)
         self.assertEquals(getPlayerSession(playerId), None)
-        
+
     def testCreateSessionAndTestIfItExpireAfterMoreThan30Minutes(self):
         playerId = "randomId"
-        createPlayerSession(playerId, datetime=datetime.datetime.now() - DEFAULT_MAX_SESSION_LIFE_TIME)
-        
+        createPlayerSession(playerId, 'signedRequest', datetime=datetime.datetime.now() - DEFAULT_MAX_SESSION_LIFE_TIME)
+
         session = getPlayerSession(playerId)
-        
+
         self.assertTrue(session.isExpired())
 
 if __name__ == "__main__":
