@@ -5,7 +5,7 @@ from pyamf import remoting
 
 def executeService(gw, service, *args):
     rp = amf3.RequestProcessor(gw)
-    message = messaging.RemotingMessage(body=args, operation='secureService.sessionTokenCall')
+    message = messaging.RemotingMessage(body=args, operation=service)
     request = remoting.Request('null', body=[message])
 
     response = rp(request)
@@ -21,7 +21,7 @@ def isResponseOk(response):
 def isResponseBad(response):
     return (
             isinstance(response, remoting.Response)
-            and response.status == remoting.STATUS_ERROR 
+            and response.status == remoting.STATUS_ERROR
             )
 
 def getMessageFromResponse(response):

@@ -1,18 +1,16 @@
 import fix_path
 
-import sys
 import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
 
 from pyamf.remoting.gateway.google import WebAppGateway
 
-from serviceUtils import getServices
-
+from service.secure import sessionTokenCall, signedRequestCall
 
 # allow pyamf to test remote services
 def gateway(debug=False):
-    servicesEnabled = getServices(['secureService'])
+    servicesEnabled = {'sessionTokenCall' :sessionTokenCall, 'signedRequestCall' : signedRequestCall}
     return WebAppGateway(servicesEnabled, logger=logging, debug=debug)
 
 # allow webtest.TestApp to get application

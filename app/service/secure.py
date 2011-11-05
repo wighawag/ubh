@@ -1,4 +1,4 @@
-from serviceUtils import getServices
+from service.utils import getServices
 from pyamf.remoting.gateway import UnknownServiceMethodError
 
 from player.session import getPlayerSession, deletePlayerSession

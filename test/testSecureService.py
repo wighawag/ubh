@@ -11,7 +11,7 @@ from django.utils import simplejson as json
 
 import datetime
 
-from secureService import sessionTokenCall, InvalidSessionError, SessionExpiredError, signedRequestCall
+from service.secure import sessionTokenCall, InvalidSessionError, SessionExpiredError, signedRequestCall
 
 from crypto.signature import create_HMACSHA256_Signature
 from encodings.base64_codec import base64_encode
