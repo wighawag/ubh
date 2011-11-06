@@ -52,8 +52,10 @@ class Test(unittest.TestCase):
 
 
     def test_googleUserAuthenticatedEcho(self):
-        answer = self.executeGoogleUserSecureService("test@mail.com", "test", "score.service.echo", "hello")
-        self.assertEqual(answer, "player googleUser_test : hello")
+        userId = 'test'
+        message = 'hello'
+        answer = self.executeGoogleUserSecureService("test@mail.com", userId, "score.service.echo", message)
+        self.assertEqual(answer, "googleUser_" + userId + ":" + message)
 
     def test_unauthenticatedEchoReturnBadResponse(self):
         message = self.executeSessionTokenService({'sessionToken' : 'non existing token' , 'playerId' : 'non authenticated playerID'}, "score.service.echo", "hello")

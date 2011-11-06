@@ -40,8 +40,9 @@ class Test(unittest.TestCase):
         playerId = "test"
         createPlayer(playerId, "test")
         session = createPlayerSession(playerId, 'token')
-        answer = sessionTokenCall(session.token, playerId, 'score.service.echo', 'hello')
-        self.assertEqual(answer, "player test : hello")
+        message = 'hello'
+        answer = sessionTokenCall(session.token, playerId, 'score.service.echo', message)
+        self.assertEqual(answer, str(playerId) + ':' + message)
 
     def testExpiredSessionTokenCall(self):
         playerId = "test"
@@ -75,10 +76,11 @@ class Test(unittest.TestCase):
         createPlayer(playerId, "test")
         session = createPlayerSession(playerId, 'signedRequest')
 
-        signedRequest = createSignedRequest(playerId, session.secret, 'score.service.echo', 'hello')
+        message = 'hello'
+        signedRequest = createSignedRequest(playerId, session.secret, 'score.service.echo', message)
         answer = signedRequestCall(signedRequest)
 
-        self.assertEqual(answer, "player test : hello")
+        self.assertEqual(answer, str(playerId) + ':' + message)
 
     def testExpiredSessionSignedRequestCall(self):
         playerId = "test"

@@ -3,7 +3,7 @@
 #######################################
 from admin.model import getAdmin
 def echo(playerId, data):
-    return "player " + playerId + " : " + data
+    return str(playerId) + ":" + data
 #######################################
 #######################################
 #######################################
