@@ -133,17 +133,20 @@ def getRandomScore(playerId):
 
     playerKey = Key.from_path('Player', playerId)
 
+    playerRecord = Record.get_by_key_name('record', parent=playerKey)
+
+    # do not review if you are a cheater
+    if playerRecord.numCheat > 0:
+        return getErrorResponse(CHEATER_BLOCKED)
+
+    reviewTimeUnitMilliseconds = getReviewTimeUnit()
+    reviewTimeUnit = datetime.timedelta(milliseconds=reviewTimeUnitMilliseconds)
+    now =datetime.datetime.now()
+    oldEnoughTime = now - reviewTimeUnit
+
+
     def _updateLastReviewAttemptDateTime():
         playerRecord = Record.get_by_key_name('record', parent=playerKey)
-
-        # do not review if you are a cheater
-        if playerRecord.numCheat > 0:
-            return getErrorResponse(CHEATER_BLOCKED)
-
-        reviewTimeUnitMilliseconds = getReviewTimeUnit()
-        reviewTimeUnit = datetime.timedelta(milliseconds=reviewTimeUnitMilliseconds)
-        now =datetime.datetime.now()
-        oldEnoughTime = now - reviewTimeUnit
 
         if playerRecord.lastReviewAttemptDateTime is not None and playerRecord.lastReviewAttemptDateTime > oldEnoughTime:
             # TODO : check whethe rthis randomize stuff is good or not:
@@ -152,21 +155,19 @@ def getRandomScore(playerId):
 
         playerRecord.lastReviewAttemptDateTime = datetime.datetime.now()
         playerRecord.put()
-        return {'oldEnoughTime' : oldEnoughTime, 'error' : None}
-
-    result = None
-    try:
-        result = db.run_in_transaction(_updateLastReviewAttemptDateTime)
-    except TransactionFailedError:
-        result = getErrorResponse(TRANSACTION_FAILURE, 0)
-
-    if 'oldEnoughTime' in result:
-        oldEnoughTime = result['oldEnoughTime']
-    else:
-        return result
+        return None
 
     reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
     if reviewSession is None:
+
+        try:
+            result = db.run_in_transaction(_updateLastReviewAttemptDateTime)
+        except TransactionFailedError:
+            result = getErrorResponse(TRANSACTION_FAILURE, 0)
+
+        if result is not None:
+            return result
+
         # do not allow reviewer to jump on a just posted review. basically the reviewer should have lots of potential review to take from and other reviewer shoudl compete with
         potentialScoresToReview = db.GqlQuery("SELECT FROM NonVerifiedScore WHERE dateTime < :oldEnoughTime ORDER BY dateTime ASC", oldEnoughTime=oldEnoughTime).fetch(5)
 

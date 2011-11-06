@@ -9,7 +9,7 @@ from stats.model import setReviewTimeUnit
 
 from time import sleep
 from admin.model import getAdmin, setAdmin
-from error import ADMIN_ONLY
+from error import ADMIN_ONLY, TOO_MANY_REVIEWS
 
 class Test(unittest.TestCase):
 
@@ -260,7 +260,32 @@ class Test(unittest.TestCase):
 
         response= service.getRandomScore("reviewer1")
 
-        self.assertTrue('retry' in response and response['retry'] > 0)
+        self.assertTrue('retry' in response and response['retry'] > 0 and 'error' in response and response['error'] == TOO_MANY_REVIEWS['code'])
+
+    def test_given_aReviewerGettingRandomScoreQuickly_ItShouldNotBeAskedToRetryLater(self):
+
+        setReviewTimeUnit(2000)
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
+        playerId = "test1"
+        createPlayer(playerId, playerId)
+        service.start(playerId)
+        service.setScore(playerId, score)
+
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
+        playerId = "test2"
+        createPlayer(playerId, playerId)
+        service.start(playerId)
+        service.setScore(playerId, score)
+
+        createPlayer("reviewer1", "reviewer1")
+
+        sleep(3)
+
+        service.getRandomScore("reviewer1")
+        response= service.getRandomScore("reviewer1")
+
+        self.assertFalse('retry' in response and response['retry'] > 0 and 'error' in response and response['error'] == TOO_MANY_REVIEWS['code'])
+
 
     def test_given_aReviewerTryingToReviewAsAdmin_ItShouldBeGivenAnError(self):
 
@@ -387,8 +412,6 @@ class Test(unittest.TestCase):
         playerKey = Key.from_path('Player', 'test4')
         playerRecord = Record.get_by_key_name('record', parent=playerKey)
         self.assertEqual(playerRecord.numCheat, 1)
-
-
 
 
 
