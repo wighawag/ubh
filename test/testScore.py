@@ -9,7 +9,7 @@ from stats.model import setReviewTimeUnit
 
 from time import sleep
 from admin.model import getAdmin, setAdmin
-from score.errors import ADMIN_ONLY
+from error import ADMIN_ONLY
 
 class Test(unittest.TestCase):
 

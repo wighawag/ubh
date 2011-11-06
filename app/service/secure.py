@@ -7,7 +7,7 @@ from django.utils import simplejson as json
 
 from crypto.signature import verifySignature, base64_url_decode, decode_signedRequest
 
-from service.errors import getErrorResponse, INVALID_SESSION_TOKEN_ERROR, INVALID_SIGNATURE_ERROR, NO_ACTIVE_SESSION_ERROR, SESSION_EXPIRED_ERROR, SIGNED_REQUEST_METHOD_ERROR, TOKEN_METHOD_ERROR, UNKNOW_SERVICE_CALL_ERROR
+from error import getErrorResponse, INVALID_SESSION_TOKEN_ERROR, INVALID_SIGNATURE_ERROR, NO_ACTIVE_SESSION_ERROR, SESSION_EXPIRED_ERROR, SIGNED_REQUEST_METHOD_ERROR, TOKEN_METHOD_ERROR, UNKNOW_SERVICE_CALL_ERROR
 
 securedMethods = getServices(["score.service"])
 

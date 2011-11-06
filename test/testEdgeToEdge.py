@@ -9,14 +9,14 @@ from authentification.google.googleUserEntryPoint import application as googleUs
 from google.appengine.ext import testbed
 from helper.googleUser import setCurrentUser, logoutCurrentUser
 
-from helper.amf import executeService, getMessageFromResponse, isResponseBad
+from helper.amf import executeService, getMessageFromResponse
 from helper.html import getFlashVarsFromResponse
 from stats.model import setReviewTimeUnit
 
 
 
 import time
-from service.errors import INVALID_SESSION_TOKEN_ERROR, NO_ACTIVE_SESSION_ERROR
+from error import NO_ACTIVE_SESSION_ERROR
 
 #from pyamf.amf3 import ByteArray
 

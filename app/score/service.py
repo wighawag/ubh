@@ -9,7 +9,7 @@ def echo(playerId, data):
 #######################################
 
 from google.appengine.api.datastore_errors import TransactionFailedError
-from score.errors import getErrorResponse, TOO_MANY_REVIEWS, NOTHING_TO_REVIEW, CHEATER_BLOCKED, SCORE_TOO_SMALL, NO_PLAYER_SESSION, NOT_ENOUGH_TIME, TOO_MUCH_TIME, TRANSACTION_FAILURE,\
+from error import getErrorResponse, TOO_MANY_REVIEWS, NOTHING_TO_REVIEW, CHEATER_BLOCKED, SCORE_TOO_SMALL, NO_PLAYER_SESSION, NOT_ENOUGH_TIME, TOO_MUCH_TIME, TRANSACTION_FAILURE,\
     ADMIN_ONLY
 
 import random
