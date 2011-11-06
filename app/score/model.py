@@ -7,6 +7,7 @@ class VerifiedScore(db.Model):
     time = db.IntegerProperty(required=True) # seconds ?
     proof = db.BlobProperty(required=True)
     seed = db.ByteStringProperty(required=True)
+    version = db.IntegerProperty(required=True)
     dateTime = db.DateTimeProperty(auto_now_add=True)
     conflictingReviewers = db.StringListProperty()
     verifier = db.StringProperty(required=True)
@@ -19,5 +20,6 @@ class NonVerifiedScore(db.Model):
     time = db.IntegerProperty(required=True) # seconds ?
     proof = db.BlobProperty(required=True)
     seed = db.ByteStringProperty(required=True)
+    version = db.IntegerProperty(required=True)
     dateTime = db.DateTimeProperty(auto_now_add=True)
     conflictingReviewers = db.StringListProperty()

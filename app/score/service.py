@@ -31,6 +31,8 @@ from math import ceil
 
 import struct
 
+import config
+
 
 MAX_AS3_UINT_VALUE = 4294967295;
 
@@ -44,7 +46,7 @@ def start(playerId):
         rand = random.SystemRandom()
         seed = struct.pack("4L", rand.randint(1, MAX_AS3_UINT_VALUE), rand.randint(1, MAX_AS3_UINT_VALUE), rand.randint(1, MAX_AS3_UINT_VALUE), rand.randint(1, MAX_AS3_UINT_VALUE))
 
-        playSession = PlaySession(key_name='playSession', seed=seed, seedDateTime=datetime.datetime.now(), parent=playerKey)
+        playSession = PlaySession(key_name='playSession', seed=seed, version=config.currentGameMechanicVersion, seedDateTime=datetime.datetime.now(), parent=playerKey)
         playSession.put()
 
         today = datetime.date.today()
@@ -55,7 +57,7 @@ def start(playerId):
             playerRecord.put()
 
         seedList = struct.unpack("4L", playSession.seed)
-        return {'success' : True, 'seed' : seedList}
+        return {'success' : True, 'seed' : seedList, 'version': playSession.version }
 
     try:
         return db.run_in_transaction(_start)
@@ -75,6 +77,7 @@ def setScore(playerId, score):
         return getErrorResponse(NO_PLAYER_SESSION)
 
     seed = playSession.seed
+    version = playSession.version
     seedDateTime = playSession.seedDateTime
 
 
@@ -103,7 +106,7 @@ def setScore(playerId, score):
                 nonVerifiedScore = None
 
             if nonVerifiedScore is None or scoreValue > nonVerifiedScore.value:
-                nonVerifiedScore = NonVerifiedScore(value=scoreValue,time=scoreTime,proof=proof,seed=seed, parent=playerKey)
+                nonVerifiedScore = NonVerifiedScore(value=scoreValue,time=scoreTime,proof=proof,seed=seed,version=version, parent=playerKey)
                 nonVerifiedScore.put()
                 if pendingScore is None:
                     pendingScore = PendingScore(key_name='pendingScore', parent=playerKey, nonVerified=nonVerifiedScore)
@@ -191,7 +194,7 @@ def getRandomScore(playerId):
     # in case score has been approved just now, it could have been removed
     if scoreToReview is not None:
         seedList = struct.unpack("4L", scoreToReview.seed)
-        return {'success' : True, 'proof' : scoreToReview.proof, 'seed' : seedList}
+        return {'success' : True, 'proof' : scoreToReview.proof, 'seed' : seedList, 'version' : scoreToReview.version}
 
     return {'success' : True, 'message' : 'Nothing to review for now'}
 
@@ -253,7 +256,7 @@ def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId, adminMode
     if scoreToReview.value == scoreValue and scoreToReview.time == scoreTime:
         # delete the score (unverified) and reset a verifiedScore
         reviewedPlayerKey = scoreToReview.parent_key()
-        verifiedScore = VerifiedScore(parent=reviewedPlayerKey, value=scoreToReview.value, proof=scoreToReview.proof, time=scoreToReview.time, seed=scoreToReview.seed, conflictingReviewers=scoreToReview.conflictingReviewers, verifier=playerId, approvedByAdmin=adminMode)
+        verifiedScore = VerifiedScore(parent=reviewedPlayerKey, value=scoreToReview.value, proof=scoreToReview.proof, time=scoreToReview.time, seed=scoreToReview.seed, version=scoreToReview.version, conflictingReviewers=scoreToReview.conflictingReviewers, verifier=playerId, approvedByAdmin=adminMode)
         verifiedScore.put()
         verifiedScoreWrapper = VerifiedScoreWrapper.get_by_key_name("verifiedScore", parent=reviewedPlayerKey)
         if verifiedScoreWrapper is None:
