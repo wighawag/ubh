@@ -7,20 +7,10 @@ from django.utils import simplejson as json
 
 from crypto.signature import verifySignature, base64_url_decode, decode_signedRequest
 
+from service.errors import getErrorResponse, INVALID_SESSION_TOKEN_ERROR, INVALID_SIGNATURE_ERROR, NO_ACTIVE_SESSION_ERROR, SESSION_EXPIRED_ERROR, SIGNED_REQUEST_METHOD_ERROR, TOKEN_METHOD_ERROR, UNKNOW_SERVICE_CALL_ERROR
+
 securedMethods = getServices(["score.service"])
 
-
-class InvalidSessionError(Exception):
-    pass
-
-class NoActiveSessionError(Exception):
-    pass
-
-class WrongSessionMethodError(Exception):
-    pass
-
-class SessionExpiredError(Exception):
-    pass
 
 def _getMethodFromName(methodName):
     if securedMethods.has_key(methodName):
@@ -31,24 +21,23 @@ def sessionTokenCall(sessionToken, playerId, methodName, *args):
     playerSession = getPlayerSession(playerId)
 
     if playerSession is None:
-        raise NoActiveSessionError("No Session Active for player: " + playerId) # session error
+        return getErrorResponse(NO_ACTIVE_SESSION_ERROR)
 
     if playerSession.method != 'token' or playerSession.token is None:
-        raise WrongSessionMethodError("the session was not initialized with token method ")
+        return getErrorResponse(TOKEN_METHOD_ERROR);
 
     if sessionToken == playerSession.token:
         if playerSession.isExpired():
             deletePlayerSession(playerId)
-            raise SessionExpiredError("Session Expired")
+            return getErrorResponse(SESSION_EXPIRED_ERROR)
 
         method = _getMethodFromName(methodName)
         if method:
             return method(playerId, *args)
         else:
-            raise UnknownServiceMethodError(
-                "Unknown method %s" % str(methodName))
+            return getErrorResponse(UNKNOW_SERVICE_CALL_ERROR)
     else:
-        raise InvalidSessionError("Invalid Session Token") # session error
+        return getErrorResponse(INVALID_SESSION_TOKEN_ERROR)
 
 def signedRequestCall(signedRequest):
 
@@ -62,24 +51,23 @@ def signedRequestCall(signedRequest):
     playerSession = getPlayerSession(playerId)
 
     if playerSession is None:
-        raise NoActiveSessionError("No Session Active for player: " + playerId) # session error
+        return getErrorResponse(NO_ACTIVE_SESSION_ERROR)
 
     if playerSession.method != 'signedRequest' or playerSession.secret is None:
-        raise WrongSessionMethodError("the session was not initialized with signedRequest method ")
+        return getErrorResponse(SIGNED_REQUEST_METHOD_ERROR)
 
     verified = verifySignature(signature, payload, playerSession.secret)
 
     if not verified:
-        raise InvalidSessionError("Invalid Signature") # session error
+        return getErrorResponse(INVALID_SIGNATURE_ERROR)
 
     if playerSession.isExpired():
         deletePlayerSession(playerId)
-        raise SessionExpiredError("Session Expired")
+        return getErrorResponse(SESSION_EXPIRED_ERROR)
 
     method = _getMethodFromName(methodName)
     if method:
         return method(playerId, *args)
     else:
-        raise UnknownServiceMethodError(
-            "Unknown method %s" % str(methodName))
+        return getErrorResponse(UNKNOW_SERVICE_CALL_ERROR)
 

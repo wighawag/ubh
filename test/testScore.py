@@ -9,6 +9,7 @@ from stats.model import setReviewTimeUnit
 
 from time import sleep
 from admin.model import getAdmin, setAdmin
+from score.errors import ADMIN_ONLY
 
 class Test(unittest.TestCase):
 
@@ -275,8 +276,7 @@ class Test(unittest.TestCase):
         service.getRandomScore("reviewer1")
         response = service.reviewScore("reviewer1", {'score':3, 'time': 0}, True)
 
-
-        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == 4001)
+        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == ADMIN_ONLY['code'])
 
     def test_given_aAdminReviewerTryingToReviewAsAdmin_ItShouldSucceed(self):
 

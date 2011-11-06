@@ -5,16 +5,17 @@ from google.appengine.ext import testbed
 from player.model import createPlayer
 from player.session import createPlayerSession, getPlayerSession, deletePlayerSession, DEFAULT_MAX_SESSION_LIFE_TIME
 
-from pyamf.remoting.gateway import UnknownServiceMethodError
-
 from django.utils import simplejson as json
 
 import datetime
 
-from service.secure import sessionTokenCall, InvalidSessionError, SessionExpiredError, signedRequestCall
+from service.secure import sessionTokenCall, signedRequestCall
 
 from crypto.signature import create_HMACSHA256_Signature
 from encodings.base64_codec import base64_encode
+from service.errors import SESSION_EXPIRED_ERROR, UNKNOW_SERVICE_CALL_ERROR,\
+    INVALID_SESSION_TOKEN_ERROR, INVALID_SIGNATURE_ERROR, TOKEN_METHOD_ERROR,\
+    SIGNED_REQUEST_METHOD_ERROR
 
 def createSignedRequest(playerId, secret, methodName, *args):
     jsonData = json.dumps({u'playerId' : playerId, 'methodName' : methodName, 'args' : args} )
@@ -48,20 +49,23 @@ class Test(unittest.TestCase):
         createPlayer(playerId, "test")
         session = createPlayerSession(playerId, 'token', datetime=datetime.datetime.now() - DEFAULT_MAX_SESSION_LIFE_TIME)
 
-        self.failUnlessRaises(SessionExpiredError, sessionTokenCall, session.token, playerId, 'score.service.echo', 'hello')
+        response = sessionTokenCall(session.token, playerId, 'score.service.echo', 'hello')
+        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == SESSION_EXPIRED_ERROR['code'])
 
 
     def testNonExistingMethodTokenCall(self):
         playerId = "test"
         createPlayer(playerId, "test")
         session = createPlayerSession(playerId, 'token')
-        self.failUnlessRaises(UnknownServiceMethodError, sessionTokenCall, session.token, playerId, 'nonExisitingMehtod')
+        response = sessionTokenCall(session.token, playerId, 'nonExisitingMehtod')
+        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == UNKNOW_SERVICE_CALL_ERROR['code'])
 
     def testWrongSessionTokenForPlayer(self):
         playerId = "test"
         createPlayer(playerId, "test")
         createPlayerSession(playerId, 'token')
-        self.failUnlessRaises(InvalidSessionError, sessionTokenCall, "wrong token", playerId, 'score.service.echo', 'hello')
+        response = sessionTokenCall("wrong token", playerId, 'score.service.echo', 'hello')
+        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == INVALID_SESSION_TOKEN_ERROR['code'])
 
 
 
@@ -83,7 +87,8 @@ class Test(unittest.TestCase):
         session = createPlayerSession(playerId, 'signedRequest', datetime=datetime.datetime.now() - DEFAULT_MAX_SESSION_LIFE_TIME)
 
         signedRequest = createSignedRequest(playerId, session.secret, 'score.service.echo', 'hello')
-        self.failUnlessRaises(SessionExpiredError, signedRequestCall, signedRequest)
+        response = signedRequestCall(signedRequest)
+        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == SESSION_EXPIRED_ERROR['code'])
 
 
     def testNonExistingMethodSignedRequestCall(self):
@@ -91,15 +96,24 @@ class Test(unittest.TestCase):
         createPlayer(playerId, "test")
         session = createPlayerSession(playerId, 'signedRequest')
         signedRequest = createSignedRequest(playerId, session.secret, 'nonExisitingMehtod')
-        self.failUnlessRaises(UnknownServiceMethodError, signedRequestCall, signedRequest)
+        response = signedRequestCall(signedRequest)
+        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == UNKNOW_SERVICE_CALL_ERROR['code'])
 
     def testWrongSessionSignedRequestForPlayer(self):
         playerId = "test"
         createPlayer(playerId, "test")
         createPlayerSession(playerId, 'signedRequest')
         signedRequest = createSignedRequest(playerId, "wrong secret", 'score.service.echo', 'hello')
-        self.failUnlessRaises(InvalidSessionError, signedRequestCall, signedRequest)
+        response = signedRequestCall(signedRequest)
+        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == INVALID_SIGNATURE_ERROR['code'])
 
+    def testWrongSessionMethod(self):
+        playerId = "test"
+        createPlayer(playerId, "test")
+        createPlayerSession(playerId, 'token')
+        signedRequest = createSignedRequest(playerId, "wrong secret", 'score.service.echo', 'hello')
+        response = signedRequestCall(signedRequest)
+        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == SIGNED_REQUEST_METHOD_ERROR['code'])
 
 if __name__ == "__main__":
     unittest.main()

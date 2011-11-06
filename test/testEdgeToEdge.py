@@ -16,6 +16,7 @@ from stats.model import setReviewTimeUnit
 
 
 import time
+from service.errors import INVALID_SESSION_TOKEN_ERROR, NO_ACTIVE_SESSION_ERROR
 
 #from pyamf.amf3 import ByteArray
 
@@ -55,8 +56,9 @@ class Test(unittest.TestCase):
         self.assertEqual(answer, "player googleUser_test : hello")
 
     def test_unauthenticatedEchoReturnBadResponse(self):
-        response = self.executeSessionTokenService({'sessionToken' : 'non existing token' , 'playerId' : 'non authenticated playerID'}, "score.service.echo", "hello")
-        self.assertTrue(isResponseBad(response))
+        message = self.executeSessionTokenService({'sessionToken' : 'non existing token' , 'playerId' : 'non authenticated playerID'}, "score.service.echo", "hello")
+        response = message.body.body
+        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == NO_ACTIVE_SESSION_ERROR['code'])
 
     def test_userSetScoreOtherDoNotRetrieveItIfTimeUnitNotPassed(self):
 
