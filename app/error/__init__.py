@@ -1,3 +1,5 @@
+import logging
+
 CHEATER_BLOCKED = {'code': 3002, 'message' : 'You already tried to cheat, you are not trusted anymore'}
 SCORE_TOO_SMALL = {'code': 3001, 'message': "should not reach here except you are trying to post a smaller score (maybe to hide an earlier cheat)"}
 TOO_MANY_REVIEWS = {'code': 2, 'message': 'You already posted enough reviews, retry later'}
@@ -17,4 +19,10 @@ INVALID_SESSION_TOKEN_ERROR = {'code':6006, 'message' : "Invalid session token"}
 INVALID_SIGNATURE_ERROR = {'code' : 6007, 'message':'Invalid Signature'}
 
 def getErrorResponse(error, retry = -1):
-    return {'success' : False, 'error': error['code'], 'message' : error['message'], 'retry': retry}
+    errorToSend = {'success' : False, 'error': error['code'], 'message' : error['message'], 'retry': retry}
+    try:
+        raise Exception(errorToSend['error'],errorToSend['message'], errorToSend['retry'])
+    except (Exception):
+        logging.exception('Error ' + str(errorToSend['error']))
+
+    return errorToSend

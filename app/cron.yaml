@@ -2,6 +2,11 @@ cron:
 - description: compute the average time for config.nbPlayerPerTimeUnit players to review scores
   url: /cron/updateReviewTimeUnit
   schedule: every 6 hours
+
 - description: clear the weights of previous time calculation
   url: /cron/clearOldReviewTimeUnitWeights
   schedule: every day 00:00 #monday 00:00
+
+- description: Daily exception report
+  url: /_ereporter?sender=wighawag@gmail.com&delete=true
+  schedule: every day 00:00
