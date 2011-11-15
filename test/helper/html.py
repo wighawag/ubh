@@ -1,4 +1,4 @@
-from django.utils import simplejson as json
+import simplejson as json
 import string
 
 def getFlashVarsFromResponse(response):

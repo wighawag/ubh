@@ -3,7 +3,7 @@ from pyamf.remoting.gateway import UnknownServiceMethodError
 
 from player.session import getPlayerSession, deletePlayerSession
 
-from django.utils import simplejson as json
+import simplejson as json
 
 from crypto.signature import verifySignature, base64_url_decode, decode_signedRequest
 
@@ -33,7 +33,11 @@ def sessionTokenCall(sessionToken, playerId, methodName, *args):
 
         method = _getMethodFromName(methodName)
         if method:
-            return method(playerId, *args)
+            if args is None or len(args) == 0:
+                return method(playerId)
+            else:
+                return method(playerId, *args)
+
         else:
             return getErrorResponse(UNKNOW_SERVICE_CALL_ERROR)
     else:
@@ -46,7 +50,10 @@ def signedRequestCall(signedRequest):
 
     playerId = data['playerId']
     methodName = data['methodName']
-    args = data['args']
+    if 'args' in data:
+        args = data['args']
+    else:
+        args = None
 
     playerSession = getPlayerSession(playerId)
 
@@ -56,7 +63,7 @@ def signedRequestCall(signedRequest):
     if playerSession.method != 'signedRequest' or playerSession.secret is None:
         return getErrorResponse(SIGNED_REQUEST_METHOD_ERROR)
 
-    verified = verifySignature(signature, payload, playerSession.secret)
+    verified = verifySignature(signature, payload, playerSession.secret, 'SHA1') # TODO decide which algorithm to use (haxe need to support SHA256
 
     if not verified:
         return getErrorResponse(INVALID_SIGNATURE_ERROR)
@@ -67,7 +74,10 @@ def signedRequestCall(signedRequest):
 
     method = _getMethodFromName(methodName)
     if method:
-        return method(playerId, *args)
+        if args is None or len(args) == 0:
+            return method(playerId)
+        else:
+            return method(playerId, *args)
     else:
         return getErrorResponse(UNKNOW_SERVICE_CALL_ERROR)
 

@@ -5,13 +5,13 @@ from google.appengine.ext import testbed
 from player.model import createPlayer
 from player.session import createPlayerSession, DEFAULT_MAX_SESSION_LIFE_TIME
 
-from django.utils import simplejson as json
+import simplejson as json
 
 import datetime
 
 from service.secure import sessionTokenCall, signedRequestCall
 
-from crypto.signature import create_HMACSHA256_Signature
+from crypto.signature import create_HMACSHA256_Signature, create_CUSTOM_SHA1_Signature
 from encodings.base64_codec import base64_encode
 from error import SESSION_EXPIRED_ERROR, UNKNOW_SERVICE_CALL_ERROR,\
     INVALID_SESSION_TOKEN_ERROR, INVALID_SIGNATURE_ERROR, SIGNED_REQUEST_METHOD_ERROR
@@ -20,7 +20,7 @@ def createSignedRequest(playerId, secret, methodName, *args):
     jsonData = json.dumps({u'playerId' : playerId, 'methodName' : methodName, 'args' : args} )
     payload, length_consumed = base64_encode(jsonData)
 
-    signature = create_HMACSHA256_Signature(payload, secret)
+    signature = create_CUSTOM_SHA1_Signature(payload, secret)
     encoded_signature, length_consumed = base64_encode(signature)
 
     return encoded_signature + '.' + payload

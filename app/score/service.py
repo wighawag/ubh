@@ -36,7 +36,7 @@ import config
 
 MAX_AS3_UINT_VALUE = 4294967295;
 
-MINIMUM_TIME = 10 # margin in seconds to send the data across
+MINIMUM_TIME = 10000 # margin in seconds to send the data across
 
 def start(playerId):
 
@@ -80,13 +80,14 @@ def setScore(playerId, score):
     version = playSession.version
     seedDateTime = playSession.seedDateTime
 
+    now = datetime.datetime.now()
 
     # TODO : investigate: should we consider the player as cheater for this two exception  ?
-    if seedDateTime + datetime.timedelta(seconds=scoreTime) > datetime.datetime.now():
+    if seedDateTime + datetime.timedelta(milliseconds=scoreTime) > now:
         return getErrorResponse(NOT_ENOUGH_TIME)
 
     maxScoreTime = scoreTime + MINIMUM_TIME
-    if seedDateTime + datetime.timedelta(seconds=maxScoreTime) < datetime.datetime.now():
+    if seedDateTime + datetime.timedelta(milliseconds=maxScoreTime) < now:
         return getErrorResponse(TOO_MUCH_TIME)
 
 
@@ -106,7 +107,14 @@ def setScore(playerId, score):
                 nonVerifiedScore = None
 
             if nonVerifiedScore is None or scoreValue > nonVerifiedScore.value:
-                nonVerifiedScore = NonVerifiedScore(value=scoreValue,time=scoreTime,proof=proof,seed=seed,version=version, parent=playerKey)
+
+                try:
+                    proofBlob = db.Blob(proof)
+                except Exception:
+                    proofText = str(proof)
+                    proofBlob = db.Blob(proofText)
+
+                nonVerifiedScore = NonVerifiedScore(value=scoreValue,time=scoreTime,proof=proofBlob,seed=seed,version=version, parent=playerKey)
                 nonVerifiedScore.put()
                 if pendingScore is None:
                     pendingScore = PendingScore(key_name='pendingScore', parent=playerKey, nonVerified=nonVerifiedScore)

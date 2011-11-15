@@ -18,7 +18,7 @@ def gateway(debug=False):
 
 # allow webtest.TestApp to get application
 def application(debug=False):
-    application_paths = [('/', gateway(debug))]
+    application_paths = [('/.*', gateway(debug))]
     return webapp.WSGIApplication(application_paths, debug=debug)
 
 def main():

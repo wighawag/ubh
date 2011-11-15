@@ -21,13 +21,17 @@ def base64_url_decode(inp):
 
 def verifySignature(signature, payload, secret, algorithm = 'HMAC-SHA256'):
 
-    if algorithm != 'HMAC-SHA256':
-        #log.error('Unknown algorithm')
-        return None
-    else:
+    if algorithm == 'HMAC-SHA256':
         expected_sig = create_HMACSHA256_Signature(payload, secret)
+    elif algorithm == 'SHA1':
+        expected_sig = create_CUSTOM_SHA1_Signature(payload, secret)
+    else:
+        return None
 
     return signature == expected_sig
 
 def create_HMACSHA256_Signature(payload, secret):
     return hmac.new(secret, msg=payload, digestmod=hashlib.sha256).digest()
+
+def create_CUSTOM_SHA1_Signature(payload, secret):
+    return hashlib.sha1(secret + payload + secret).hexdigest()

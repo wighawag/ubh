@@ -1,8 +1,9 @@
-#Sat Nov 05 08:43:01 GMT 2011
+#Sun Nov 13 11:08:54 GMT 2011
 eclipse.preferences.version=1
 encoding//app/admin/setPlayerAsAdmin.py=utf-8
 encoding//app/authentification/facebook/entryPoint.py=utf-8
 encoding//app/authentification/google/googleUserEntryPoint.py=utf-8
+encoding//app/authentification/password/entryPoint.py=utf-8
 encoding//app/cron/clearOldReviewTimeUnitWeights.py=utf-8
 encoding//app/cron/updateReviewTimeUnit.py=utf-8
 encoding//app/crypto/signature.py=utf-8

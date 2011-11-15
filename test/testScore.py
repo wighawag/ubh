@@ -214,7 +214,7 @@ class Test(unittest.TestCase):
 
 
     def test_given_aScoreSubmitedLate_ItShouldNotBeSubmited(self):
-        score = {'score' : 3, 'proof' : "sdsd", 'time' : -10} # -10 to fake a later submited score
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : -10000} # -10 to fake a later submited score
         playerId = "test"
         createPlayer(playerId, playerId)
         service.start(playerId)
@@ -226,7 +226,7 @@ class Test(unittest.TestCase):
 
 
     def test_given_aScoreSubmitedTooEarly_ItShouldNotBeSubmited(self):
-        score = {'score' : 3, 'proof' : "sdsd", 'time' : 10}
+        score = {'score' : 3, 'proof' : "sdsd", 'time' : 10000}
         playerId = "test"
         createPlayer(playerId, playerId)
         service.start(playerId)
