@@ -410,3 +410,28 @@ def approveScore(playerId, score):
             db.run_in_transaction(_nonCheaterUpdate,nonCheaterKey)
 
     return {'success' : True, 'message' : 'approvement submited'}
+
+
+def getOwnHighScore(playerId):
+
+    def _getOwnHighScore():
+        score = None
+        playerKey = Key.from_path('Player', playerId)
+        bestScore = PendingScore.get_by_key_name("pendingScore", parent=playerKey)
+        if bestScore is None:
+            bestScore = VerifiedScoreWrapper.get_by_key_name("verifiedScore", parent=playerKey)
+            if bestScore is not None:
+                score = bestScore.verified
+        else:
+            score = bestScore.nonVerified
+
+        if score is None:
+            return {'success' : True, 'message' : 'you have no score yet'}
+
+        return {'success' : True, 'score' : score.value, 'time' : score.time}
+
+    try:
+        return db.run_in_transaction(_getOwnHighScore)
+    except TransactionFailedError:
+        return getErrorResponse(TRANSACTION_FAILURE, 0)
+
