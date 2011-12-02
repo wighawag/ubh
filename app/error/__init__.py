@@ -19,10 +19,10 @@ INVALID_SESSION_TOKEN_ERROR = {'code':6006, 'message' : "Invalid session token"}
 INVALID_SIGNATURE_ERROR = {'code' : 6007, 'message':'Invalid Signature'}
 
 def getErrorResponse(error, retry = -1):
-    errorToSend = {'success' : False, 'error': error['code'], 'message' : error['message'], 'retry': retry}
+    errorToSend = {'error' : {'code': error['code'], 'message' : error['message'], 'retry': retry } }
     try:
-        raise Exception(errorToSend['error'],errorToSend['message'], errorToSend['retry'])
+        raise Exception(error['code'],errorToSend['message'], errorToSend['retry'])
     except (Exception):
-        logging.exception('Error ' + str(errorToSend['error']))
+        logging.exception('Error ' + str(error['code']))
 
     return errorToSend

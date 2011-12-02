@@ -1,6 +1,6 @@
 import unittest
 
-from app import gateway
+from amf import gateway
 from webtest import TestApp
 
 from authentification.google.googleUserEntryPoint import application as googleUserApp
@@ -55,12 +55,12 @@ class Test(unittest.TestCase):
         userId = 'test'
         message = 'hello'
         answer = self.executeGoogleUserSecureService("test@mail.com", userId, "score.service.echo", message)
-        self.assertEqual(answer, "googleUser_" + userId + ":" + message)
+        self.assertEqual(answer['result'], "googleUser_" + userId + ":" + message)
 
     def test_unauthenticatedEchoReturnBadResponse(self):
         message = self.executeSessionTokenService({'sessionToken' : 'non existing token' , 'playerId' : 'non authenticated playerID'}, "score.service.echo", "hello")
         response = message.body.body
-        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == NO_ACTIVE_SESSION_ERROR['code'])
+        self.assertTrue('error' in response  and response['error']['code'] == NO_ACTIVE_SESSION_ERROR['code'])
 
     def test_userSetScoreOtherDoNotRetrieveItIfTimeUnitNotPassed(self):
 
@@ -81,7 +81,8 @@ class Test(unittest.TestCase):
 
         setReviewTimeUnit(3000)
         response = self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")
-        seed= response['seed']
+        result = response['result']
+        seed= result['seed']
 
         score = {'score' : 3, 'proof' : "sdsd", 'time' : 0}
 
@@ -92,7 +93,8 @@ class Test(unittest.TestCase):
 
         ## get a random score (seed, score, actions) and it should match
         answer = self.executeGoogleUserSecureService("player2@mail.com", "player2", "score.service.getRandomScore")
-        self.assertTrue('proof' in answer and score['proof'] == answer['proof'] and 'seed' in answer and seed == answer['seed'])
+        result = answer['result']
+        self.assertTrue('proof' in result and score['proof'] == result['proof'] and 'seed' in result and seed == result['seed'])
 
 #    def test_userSetScoreOtherRetrieveItAfterManyPlayerPlayed(self):
 #        self.executeGoogleUserSecureService("player1@mail.com", "player1", "score.service.start")

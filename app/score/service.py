@@ -3,7 +3,7 @@
 #######################################
 from admin.model import getAdmin
 def echo(playerId, data):
-    return str(playerId) + ":" + data
+    return {'result' : str(playerId) + ":" + data }
 #######################################
 #######################################
 #######################################
@@ -57,7 +57,7 @@ def start(playerId):
             playerRecord.put()
 
         seedList = struct.unpack("4L", playSession.seed)
-        return {'success' : True, 'seed' : seedList, 'version': playSession.version }
+        return {'result' : { 'seed' : seedList, 'version': playSession.version } }
 
     try:
         return db.run_in_transaction(_start)
@@ -126,7 +126,7 @@ def setScore(playerId, score):
                     pendingScore.nonVerified = nonVerifiedScore
                 pendingScore.put()
 
-                return {'success' : True}
+                return {'result' : {'message' : 'success'} }
             else:
                 pass # TODO : are you trying to cheat?
         else:
@@ -192,7 +192,8 @@ def getRandomScore(playerId):
                     break
 
         if scoreToReview is None:
-            return {'success' : True, 'message' : 'Nothing to review for now'}
+            return {'result' : {'message' : 'Nothing to review for now'} }
+
 
         reviewSession = ReviewSession(key_name='reviewSession', currentScoreToReview=scoreToReview, parent=playerKey)
         reviewSession.put()
@@ -202,9 +203,9 @@ def getRandomScore(playerId):
     # in case score has been approved just now, it could have been removed
     if scoreToReview is not None:
         seedList = struct.unpack("4L", scoreToReview.seed)
-        return {'success' : True, 'proof' : scoreToReview.proof, 'seed' : seedList, 'version' : scoreToReview.version}
+        return {'result' : { 'proof' : scoreToReview.proof, 'seed' : seedList, 'version' : scoreToReview.version} }
 
-    return {'success' : True, 'message' : 'Nothing to review for now'}
+    return {'result' : {'message' : 'Nothing to review for now'} }
 
 
 def reviewScore(playerId, score, adminMode=False):
@@ -250,7 +251,7 @@ def reviewScore(playerId, score, adminMode=False):
         for cheaterKey in cheaters:
             db.run_in_transaction(_cheaterUpdate,cheaterKey)
 
-    return {'success' : True, 'message' : 'review submited'}
+    return {'result' : {'message' : 'review submited'} }
 
 def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId, adminMode):
     playerKey = Key.from_path('Player', playerId)
@@ -340,9 +341,10 @@ def getHighestNonApprovedScore(playerId):
         approveSession.put()
 
         seedList = struct.unpack("4L", scoreToApprove.seed)
-        return {'success' : True, 'proof' : scoreToApprove.proof, 'seed' : seedList}
+        return {'result' : { 'proof' : scoreToApprove.proof, 'seed' : seedList} }
 
-    return {'success' : True, 'message' : 'Nothing to approve for now'}
+
+    return {'result' : { 'message' : 'Nothing to approve for now'} }
 
 def approveScore(playerId, score):
     admin = getAdmin()
@@ -409,7 +411,7 @@ def approveScore(playerId, score):
         for nonCheaterKey in nonCheaters:
             db.run_in_transaction(_nonCheaterUpdate,nonCheaterKey)
 
-    return {'success' : True, 'message' : 'approvement submited'}
+    return {'result' : { 'message' : 'approvement submited'} }
 
 
 def getOwnHighScore(playerId):
@@ -426,9 +428,9 @@ def getOwnHighScore(playerId):
             score = bestScore.nonVerified
 
         if score is None:
-            return {'success' : True, 'message' : 'you have no score yet'}
+            return {'result' : { 'message' : 'you have no score yet'} }
 
-        return {'success' : True, 'score' : score.value, 'time' : score.time}
+        return {'result' : { 'score' : score.value, 'time' : score.time} }
 
     try:
         return db.run_in_transaction(_getOwnHighScore)

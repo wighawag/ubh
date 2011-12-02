@@ -5,25 +5,15 @@ from google.appengine.ext import testbed
 from player.model import createPlayer
 from player.session import createPlayerSession, DEFAULT_MAX_SESSION_LIFE_TIME
 
-import simplejson as json
-
 import datetime
 
 from service.secure import sessionTokenCall, signedRequestCall
 
-from crypto.signature import create_HMACSHA256_Signature, create_CUSTOM_SHA1_Signature
-from encodings.base64_codec import base64_encode
+
 from error import SESSION_EXPIRED_ERROR, UNKNOW_SERVICE_CALL_ERROR,\
     INVALID_SESSION_TOKEN_ERROR, INVALID_SIGNATURE_ERROR, SIGNED_REQUEST_METHOD_ERROR
+from helper.signedRequest import createSignedRequest
 
-def createSignedRequest(playerId, secret, methodName, *args):
-    jsonData = json.dumps({u'playerId' : playerId, 'methodName' : methodName, 'args' : args} )
-    payload, length_consumed = base64_encode(jsonData)
-
-    signature = create_CUSTOM_SHA1_Signature(payload, secret)
-    encoded_signature, length_consumed = base64_encode(signature)
-
-    return encoded_signature + '.' + payload
 
 class Test(unittest.TestCase):
 
@@ -42,7 +32,7 @@ class Test(unittest.TestCase):
         session = createPlayerSession(playerId, 'token')
         message = 'hello'
         answer = sessionTokenCall(session.token, playerId, 'score.service.echo', message)
-        self.assertEqual(answer, str(playerId) + ':' + message)
+        self.assertEqual(answer['result'], str(playerId) + ':' + message)
 
     def testExpiredSessionTokenCall(self):
         playerId = "test"
@@ -50,7 +40,7 @@ class Test(unittest.TestCase):
         session = createPlayerSession(playerId, 'token', datetime=datetime.datetime.now() - DEFAULT_MAX_SESSION_LIFE_TIME)
 
         response = sessionTokenCall(session.token, playerId, 'score.service.echo', 'hello')
-        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == SESSION_EXPIRED_ERROR['code'])
+        self.assertTrue('error' in response and response['error']['code'] == SESSION_EXPIRED_ERROR['code'])
 
 
     def testNonExistingMethodTokenCall(self):
@@ -58,14 +48,14 @@ class Test(unittest.TestCase):
         createPlayer(playerId, "test")
         session = createPlayerSession(playerId, 'token')
         response = sessionTokenCall(session.token, playerId, 'nonExisitingMehtod')
-        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == UNKNOW_SERVICE_CALL_ERROR['code'])
+        self.assertTrue('error' in response and response['error']['code'] == UNKNOW_SERVICE_CALL_ERROR['code'])
 
     def testWrongSessionTokenForPlayer(self):
         playerId = "test"
         createPlayer(playerId, "test")
         createPlayerSession(playerId, 'token')
         response = sessionTokenCall("wrong token", playerId, 'score.service.echo', 'hello')
-        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == INVALID_SESSION_TOKEN_ERROR['code'])
+        self.assertTrue('error' in response and response['error']['code'] == INVALID_SESSION_TOKEN_ERROR['code'])
 
 
 
@@ -80,7 +70,7 @@ class Test(unittest.TestCase):
         signedRequest = createSignedRequest(playerId, session.secret, 'score.service.echo', message)
         answer = signedRequestCall(signedRequest)
 
-        self.assertEqual(answer, str(playerId) + ':' + message)
+        self.assertEqual(answer['result'], str(playerId) + ':' + message)
 
     def testExpiredSessionSignedRequestCall(self):
         playerId = "test"
@@ -89,7 +79,7 @@ class Test(unittest.TestCase):
 
         signedRequest = createSignedRequest(playerId, session.secret, 'score.service.echo', 'hello')
         response = signedRequestCall(signedRequest)
-        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == SESSION_EXPIRED_ERROR['code'])
+        self.assertTrue('error' in response and response['error']['code'] == SESSION_EXPIRED_ERROR['code'])
 
 
     def testNonExistingMethodSignedRequestCall(self):
@@ -98,7 +88,7 @@ class Test(unittest.TestCase):
         session = createPlayerSession(playerId, 'signedRequest')
         signedRequest = createSignedRequest(playerId, session.secret, 'nonExisitingMehtod')
         response = signedRequestCall(signedRequest)
-        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == UNKNOW_SERVICE_CALL_ERROR['code'])
+        self.assertTrue('error' in response and response['error']['code'] == UNKNOW_SERVICE_CALL_ERROR['code'])
 
     def testWrongSessionSignedRequestForPlayer(self):
         playerId = "test"
@@ -106,7 +96,7 @@ class Test(unittest.TestCase):
         createPlayerSession(playerId, 'signedRequest')
         signedRequest = createSignedRequest(playerId, "wrong secret", 'score.service.echo', 'hello')
         response = signedRequestCall(signedRequest)
-        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == INVALID_SIGNATURE_ERROR['code'])
+        self.assertTrue('error' in response and response['error']['code'] == INVALID_SIGNATURE_ERROR['code'])
 
     def testWrongSessionMethod(self):
         playerId = "test"
@@ -114,7 +104,7 @@ class Test(unittest.TestCase):
         createPlayerSession(playerId, 'token')
         signedRequest = createSignedRequest(playerId, "wrong secret", 'score.service.echo', 'hello')
         response = signedRequestCall(signedRequest)
-        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == SIGNED_REQUEST_METHOD_ERROR['code'])
+        self.assertTrue('error' in response and response['error']['code'] == SIGNED_REQUEST_METHOD_ERROR['code'])
 
 if __name__ == "__main__":
     unittest.main()

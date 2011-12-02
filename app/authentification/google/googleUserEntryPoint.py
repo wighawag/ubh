@@ -35,11 +35,13 @@ class MainPage(webapp.RequestHandler):
             googleUser = GoogleUser(key_name=userId, playerId=playerId)
             googleUser.put();
 
+        method = self.request.get("method", default_value=None)
+        if method is None:
+            if self.request.scheme == 'https':
+                method = 'signedRequest'
+            else:
+                method = 'token'
 
-        if self.request.scheme == 'https':
-            method = 'signedRequest'
-        else:
-            method = 'token'
         session = createPlayerSession(playerId, method)
         if method == 'token':
             flashvars = {u'method' : 'token', u'sessionToken' : session.token, u'playerId' : playerId}

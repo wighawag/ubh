@@ -260,7 +260,7 @@ class Test(unittest.TestCase):
 
         response= service.getRandomScore("reviewer1")
 
-        self.assertTrue('retry' in response and response['retry'] > 0 and 'error' in response and response['error'] == TOO_MANY_REVIEWS['code'])
+        self.assertTrue('error' in response and response['error']['code'] == TOO_MANY_REVIEWS['code'] and response['error']['retry']  > 0)
 
     def test_given_aReviewerGettingRandomScoreQuickly_ItShouldNotBeAskedToRetryLater(self):
 
@@ -301,7 +301,7 @@ class Test(unittest.TestCase):
         service.getRandomScore("reviewer1")
         response = service.reviewScore("reviewer1", {'score':3, 'time': 0}, True)
 
-        self.assertTrue('success' in response and response['success'] == False and 'error' in response and response['error'] == ADMIN_ONLY['code'])
+        self.assertTrue('error' in response and response['error']['code'] == ADMIN_ONLY['code'])
 
     def test_given_aAdminReviewerTryingToReviewAsAdmin_ItShouldSucceed(self):
 
@@ -322,7 +322,7 @@ class Test(unittest.TestCase):
         response = service.reviewScore("reviewer1", {'score':3, 'time': 0}, True)
 
 
-        self.assertTrue('success' in response and response['success'] == True)
+        self.assertTrue('result' in response)
 
         playerKey = Key.from_path('Player', playerId)
         verifiedScoreWrapper = VerifiedScoreWrapper.get_by_key_name('verifiedScore', parent=playerKey)
