@@ -21,7 +21,7 @@ INVALID_SIGNATURE_ERROR = {'code' : 6007, 'message':'Invalid Signature'}
 def getErrorResponse(error, retry = -1):
     errorToSend = {'error' : {'code': error['code'], 'message' : error['message'], 'retry': retry } }
     try:
-        raise Exception(error['code'],errorToSend['message'], errorToSend['retry'])
+        raise Exception(error['code'], error['message'], retry)
     except (Exception):
         logging.exception('Error ' + str(error['code']))
 
