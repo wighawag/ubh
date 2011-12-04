@@ -11,9 +11,19 @@ from service.secure import sessionTokenCall, signedRequestCall
 from google.appengine.ext import ereporter
 
 
+def amfSessionTokenCall(requestId, sessionToken, playerId, methodName, *args):
+    result = sessionTokenCall(sessionToken, playerId, methodName, *args)
+    result['id'] = requestId;
+    return result
+
+def amfSignedRequestCall(requestId, signedRequest):
+    result = signedRequestCall(signedRequest)
+    result['id'] = requestId;
+    return result
+
 # allow pyamf to test remote services
 def gateway(debug=False):
-    servicesEnabled = {'sessionTokenCall' :sessionTokenCall, 'signedRequestCall' : signedRequestCall}
+    servicesEnabled = {'sessionTokenCall' :amfSessionTokenCall, 'signedRequestCall' : amfSignedRequestCall}
     return WebAppGateway(servicesEnabled, logger=logging, debug=debug)
 
 # allow webtest.TestApp to get application

@@ -46,7 +46,7 @@ class Test(unittest.TestCase):
         return getMessageFromResponse(response)
 
     def executeSessionTokenService(self, flashvars, service, *args):
-        return executeService(gateway(True), "sessionTokenCall", flashvars['sessionToken'], flashvars['playerId'], service, *args)
+        return executeService(gateway(True), "sessionTokenCall", 1, flashvars['sessionToken'], flashvars['playerId'], service, *args)
 
 
 
