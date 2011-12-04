@@ -7,7 +7,7 @@ import simplejson as json
 
 from crypto.signature import verifySignature, base64_url_decode, decode_signedRequest
 
-from error import getErrorResponse, INVALID_SESSION_TOKEN_ERROR, INVALID_SIGNATURE_ERROR, NO_ACTIVE_SESSION_ERROR, SESSION_EXPIRED_ERROR, SIGNED_REQUEST_METHOD_ERROR, TOKEN_METHOD_ERROR, UNKNOW_SERVICE_CALL_ERROR
+from error import logError, getErrorResponse, INVALID_SESSION_TOKEN_ERROR, INVALID_SIGNATURE_ERROR, NO_ACTIVE_SESSION_ERROR, SESSION_EXPIRED_ERROR, SIGNED_REQUEST_METHOD_ERROR, TOKEN_METHOD_ERROR, UNKNOW_SERVICE_CALL_ERROR
 
 securedMethods = getServices(["score.service"])
 
@@ -17,6 +17,7 @@ def _getMethodFromName(methodName):
         return securedMethods[methodName]
     return None
 
+@logError
 def sessionTokenCall(sessionToken, playerId, methodName, *args):
     playerSession = getPlayerSession(playerId)
 
@@ -43,6 +44,7 @@ def sessionTokenCall(sessionToken, playerId, methodName, *args):
     else:
         return getErrorResponse(INVALID_SESSION_TOKEN_ERROR)
 
+@logError
 def signedRequestCall(signedRequest):
 
     signature, payload = decode_signedRequest(signedRequest)

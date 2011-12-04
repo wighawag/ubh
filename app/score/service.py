@@ -9,8 +9,8 @@ def echo(playerId, data):
 #######################################
 
 from google.appengine.api.datastore_errors import TransactionFailedError
-from error import getErrorResponse, TOO_MANY_REVIEWS, NOTHING_TO_REVIEW, CHEATER_BLOCKED, SCORE_TOO_SMALL, NO_PLAYER_SESSION, NOT_ENOUGH_TIME, TOO_MUCH_TIME, TRANSACTION_FAILURE,\
-    ADMIN_ONLY
+from error import getErrorResponse, TOO_MANY_REVIEWS, NOTHING_TO_REVIEW, CHEATER_BLOCKED, SCORE_TOO_SMALL, NO_PLAYER_SESSION, NOT_ENOUGH_TIME, TOO_MUCH_TIME, ADMIN_ONLY \
+, START_TRANSACTION_FAILURE, SETSCORE_TRANSACTION_FAILURE, LASTREVIEWUPDATE_TRANSACTION_FAILURE, CHECKCONFLICT_TRANSACTION_FAILURE, APPROVESCORE_TRANSACTION_FAILURE, OWNHIGHSCORE_TRANSACTION_FAILURE
 
 import random
 import datetime
@@ -62,7 +62,7 @@ def start(playerId):
     try:
         return db.run_in_transaction(_start)
     except TransactionFailedError:
-        return getErrorResponse(TRANSACTION_FAILURE, 0)
+        return getErrorResponse(START_TRANSACTION_FAILURE, 0)
 
 def setScore(playerId, score):
 
@@ -137,7 +137,7 @@ def setScore(playerId, score):
     try:
         return db.run_in_transaction(_setScore)
     except TransactionFailedError:
-        return getErrorResponse(TRANSACTION_FAILURE, 0)
+        return getErrorResponse(SETSCORE_TRANSACTION_FAILURE, 0)
 
 
 def getRandomScore(playerId):
@@ -174,7 +174,7 @@ def getRandomScore(playerId):
         try:
             result = db.run_in_transaction(_updateLastReviewAttemptDateTime)
         except TransactionFailedError:
-            result = getErrorResponse(TRANSACTION_FAILURE, 0)
+            result = getErrorResponse(LASTREVIEWUPDATE_TRANSACTION_FAILURE, 0)
 
         if result is not None:
             return result
@@ -240,7 +240,7 @@ def reviewScore(playerId, score, adminMode=False):
     try:
         cheaters = db.run_in_transaction(_checkConflicts, scoreToReviewKey, scoreValue, scoreTime, playerId, adminMode)
     except TransactionFailedError:
-        return getErrorResponse(TRANSACTION_FAILURE, 0)
+        return getErrorResponse(CHECKCONFLICT_TRANSACTION_FAILURE, 0)
 
     if cheaters:
         def _cheaterUpdate(cheaterKey):
@@ -392,7 +392,7 @@ def approveScore(playerId, score):
     try:
         result = db.run_in_transaction(_approveScore)
     except TransactionFailedError:
-        return getErrorResponse(TRANSACTION_FAILURE, 0)
+        return getErrorResponse(APPROVESCORE_TRANSACTION_FAILURE, 0)
 
     cheater = result['cheater']
     nonCheaters = result['nonCheaters']
@@ -435,5 +435,5 @@ def getOwnHighScore(playerId):
     try:
         return db.run_in_transaction(_getOwnHighScore)
     except TransactionFailedError:
-        return getErrorResponse(TRANSACTION_FAILURE, 0)
+        return getErrorResponse(OWNHIGHSCORE_TRANSACTION_FAILURE, 0)
 
