@@ -99,14 +99,14 @@ def setScore(playerId, score):
         if verifiedScoreWrapper is not None:
             verifiedScore = verifiedScoreWrapper.verified
 
-        if verifiedScore is None or scoreValue > verifiedScore.value:
+        if verifiedScore is None or scoreValue > verifiedScore.value or (scoreValue == verifiedScore.value and scoreTime < verifiedScore.time):
             pendingScore = PendingScore.get_by_key_name("pendingScore", parent=playerKey)
             if pendingScore is not None:
                 nonVerifiedScore = pendingScore.nonVerified
             else:
                 nonVerifiedScore = None
 
-            if nonVerifiedScore is None or scoreValue > nonVerifiedScore.value:
+            if nonVerifiedScore is None or scoreValue > nonVerifiedScore.value or (scoreValue == nonVerifiedScore.value and scoreTime < nonVerifiedScore.time):
 
                 try:
                     proofBlob = db.Blob(proof)
