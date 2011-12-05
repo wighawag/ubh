@@ -34,7 +34,9 @@ import struct
 import config
 
 
-MAX_AS3_UINT_VALUE = 4294967295;
+MAX_AS3_UINT_VALUE = 4294967295
+
+MAX_INT32_VALUE = 2147483647
 
 MINIMUM_TIME = 10000 # margin in seconds to send the data across
 
@@ -44,7 +46,7 @@ def start(playerId):
         playerKey = Key.from_path('Player', playerId)
 
         rand = random.SystemRandom()
-        seed = struct.pack("4L", rand.randint(1, MAX_AS3_UINT_VALUE), rand.randint(1, MAX_AS3_UINT_VALUE), rand.randint(1, MAX_AS3_UINT_VALUE), rand.randint(1, MAX_AS3_UINT_VALUE))
+        seed = struct.pack("4L", rand.randint(1, MAX_INT32_VALUE), rand.randint(1, MAX_INT32_VALUE), rand.randint(1, MAX_INT32_VALUE), rand.randint(1, MAX_INT32_VALUE))
 
         playSession = PlaySession(key_name='playSession', seed=seed, version=config.currentGameMechanicVersion, seedDateTime=datetime.datetime.now(), parent=playerKey)
         playSession.put()
@@ -155,13 +157,16 @@ def getRandomScore(playerId):
     now =datetime.datetime.now()
     oldEnoughTime = now - reviewTimeUnit
 
+    delay = 2000 + random.random() * 5000  + ceil(reviewTimeUnitMilliseconds * (1 + random.random() * 2))
+    if delay > MAX_INT32_VALUE:
+        delay = MAX_INT32_VALUE
 
     def _updateLastReviewAttemptDateTime():
         playerRecord = Record.get_by_key_name('record', parent=playerKey)
 
         if playerRecord.lastReviewAttemptDateTime is not None and playerRecord.lastReviewAttemptDateTime > oldEnoughTime:
             # TODO : check whethe rthis randomize stuff is good or not:
-            return getErrorResponse(TOO_MANY_REVIEWS, 2000 + random.random() * 5000  + ceil(reviewTimeUnitMilliseconds * (1 + random.random() * 2)))
+            return getErrorResponse(TOO_MANY_REVIEWS, delay)
             # could be 2 * reviewTimeUnit / config.nbPlayerPerTimeUnit
 
         playerRecord.lastReviewAttemptDateTime = datetime.datetime.now()
@@ -192,7 +197,7 @@ def getRandomScore(playerId):
                     break
 
         if scoreToReview is None:
-            return {'result' : {'message' : 'Nothing to review for now'} }
+            return {'result' : {'message' : 'Nothing to review for now', 'retry' : delay } }
 
 
         reviewSession = ReviewSession(key_name='reviewSession', currentScoreToReview=scoreToReview, parent=playerKey)
