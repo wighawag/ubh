@@ -9,7 +9,7 @@ import datetime as datetimeModule
 
 DEFAULT_MAX_SESSION_LIFE_TIME = datetimeModule.timedelta(minutes=30) # need to be regenerated so that the player is able to share its score after 30 minutes while playing
 
-namespace = "PlayerSession"
+prefix = "PlayerSession"
 
 def createPlayerSession(playerId, method, datetime = None):
     #TODO add signedRequest SECRET to use signedRequestCall instead of sessionTokenCall : str(random.getrandbits(32)) # should be more than 32 (we want 32 charecter, not bit)
@@ -24,15 +24,15 @@ def createPlayerSession(playerId, method, datetime = None):
 
     session.put()
     protobuf = db.model_to_protobuf(session)
-    memcache.set(playerId, protobuf, DEFAULT_MAX_SESSION_LIFE_TIME.seconds, namespace=namespace)
+    memcache.set(prefix + playerId, protobuf, DEFAULT_MAX_SESSION_LIFE_TIME.seconds)
     return session
 
 def deletePlayerSession(playerId):
     db.delete(db.Key.from_path('PlayerSession', playerId))
-    memcache.delete(playerId, namespace=namespace)
+    memcache.delete(prefix + playerId)
 
 def getPlayerSession(playerId):
-    protobuf = memcache.get(playerId, namespace=namespace)
+    protobuf = memcache.get(prefix + playerId)
 
     if protobuf is not None:
         return db.model_from_protobuf(protobuf)
@@ -40,7 +40,7 @@ def getPlayerSession(playerId):
         session = PlayerSession.get_by_key_name(playerId)
         if session is not None:
             protobuf = db.model_to_protobuf(session)
-            memcache.set(playerId, protobuf, DEFAULT_MAX_SESSION_LIFE_TIME.seconds, namespace=namespace) # TODO : set expiry time depending of creationDateTime
+            memcache.set(prefix + playerId, protobuf, DEFAULT_MAX_SESSION_LIFE_TIME.seconds) # TODO : set expiry time depending of creationDateTime
             return session
     return None
 
