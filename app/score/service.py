@@ -208,7 +208,7 @@ def getRandomScore(playerId):
         seedList = struct.unpack("4L", scoreToReview.seed)
         return {'result' : { 'proof' : scoreToReview.proof, 'seed' : seedList, 'version' : scoreToReview.version} }
 
-    return {'result' : {'message' : 'Nothing to review for now'}, 'retry' : delay }
+    return {'result' : {'message' : 'Nothing to review for now (just done)'}, 'retry' : delay }
 
 
 def reviewScore(playerId, score, adminMode=False):
