@@ -9,6 +9,9 @@ def echo(playerId, data):
 #######################################
 
 from google.appengine.api.datastore_errors import TransactionFailedError
+
+from google.appengine.ext.db import ReferencePropertyResolveError
+
 from error import getErrorResponse, TOO_MANY_REVIEWS, NOTHING_TO_REVIEW, CHEATER_BLOCKED, SCORE_TOO_SMALL, NO_PLAYER_SESSION, NOT_ENOUGH_TIME, TOO_MUCH_TIME, ADMIN_ONLY \
 , START_TRANSACTION_FAILURE, SETSCORE_TRANSACTION_FAILURE, LASTREVIEWUPDATE_TRANSACTION_FAILURE, CHECKCONFLICT_TRANSACTION_FAILURE, APPROVESCORE_TRANSACTION_FAILURE, OWNHIGHSCORE_TRANSACTION_FAILURE
 
@@ -25,7 +28,7 @@ from google.appengine.ext import db
 
 from score.reviewconflict import ReviewConflict
 
-from stats.model import getReviewTimeUnit
+from stats.model import getReviewTimeUnit, setReviewTimeUnit
 
 from math import ceil
 
@@ -201,8 +204,11 @@ def getRandomScore(playerId):
         reviewSession = ReviewSession(key_name='reviewSession', currentScoreToReview=scoreToReview, parent=playerKey)
         reviewSession.put()
     else:
-        scoreToReview = reviewSession.currentScoreToReview
-
+        try:
+            scoreToReview = reviewSession.currentScoreToReview
+        except ReferencePropertyResolveError:
+            scoreToReview = None
+            
     # in case score has been approved just now, it could have been removed
     if scoreToReview is not None:
         seedList = struct.unpack("4L", scoreToReview.seed)
@@ -327,6 +333,20 @@ def _checkConflicts(scoreToReviewKey, scoreValue, scoreTime, playerId, adminMode
 
 
     return cheaters
+
+
+def forceReviewTimeUnit(playerId, value):
+    admin = getAdmin()
+    try:
+        admin.playerList.index(playerId)
+    except ValueError:
+        return getErrorResponse(ADMIN_ONLY)
+    
+    oldReviewTimeUnit = getReviewTimeUnit()
+    
+    setReviewTimeUnit(value)
+    
+    return  {'result' : { 'oldReviewTimeUnit' : oldReviewTimeUnit} }
 
 def getHighestNonApprovedScore(playerId):
     admin = getAdmin()
