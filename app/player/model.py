@@ -21,7 +21,7 @@ class Record(db.Model):
     creationDateTime = db.DateTimeProperty(auto_now_add=True)
 
     numScoreReviewed = db.IntegerProperty(default=0)
-    lastReviewAttemptDateTime = db.DateTimeProperty()
+    lastReviewAttemptDateTime = db.DateTimeProperty(default=None)
 
     numDaysPlayed = db.IntegerProperty(default=0)
     lastDayPlayed = db.DateProperty()

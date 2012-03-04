@@ -19,6 +19,10 @@ handlers:
 - url: /password
   script : authentification/password/entryPoint.py
 
+- url: /test
+  script : authentification/test/entryPoint.py
+
+
 - url: /cron/updateReviewTimeUnit
   script : cron/updateReviewTimeUnit.py
   login: admin

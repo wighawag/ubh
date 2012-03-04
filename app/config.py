@@ -7,3 +7,5 @@ currentGameMechanicVersion = 1
 
 #passwordUserAllowed = None
 passwordUserAllowed = ['test1','test2']
+
+testMasters = ['test1']

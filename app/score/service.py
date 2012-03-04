@@ -162,8 +162,6 @@ def getRandomScore(playerId):
         delay = MAX_INT32_VALUE
 
     def _updateLastReviewAttemptDateTime():
-        playerRecord = Record.get_by_key_name('record', parent=playerKey)
-
         if playerRecord.lastReviewAttemptDateTime is not None and playerRecord.lastReviewAttemptDateTime > oldEnoughTime:
             # TODO : check whethe rthis randomize stuff is good or not:
             return getErrorResponse(TOO_MANY_REVIEWS, delay)
@@ -210,7 +208,7 @@ def getRandomScore(playerId):
         seedList = struct.unpack("4L", scoreToReview.seed)
         return {'result' : { 'proof' : scoreToReview.proof, 'seed' : seedList, 'version' : scoreToReview.version} }
 
-    return {'result' : {'message' : 'Nothing to review for now'} }
+    return {'result' : {'message' : 'Nothing to review for now'}, 'retry' : delay }
 
 
 def reviewScore(playerId, score, adminMode=False):

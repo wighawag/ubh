@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
+
+from google.appengine.dist import use_library
+use_library('django', '1.2')
+
 from google.appengine.api import urlfetch
 
 from google.appengine.ext import webapp
@@ -21,11 +25,16 @@ import config
 import urllib
 
 # yoctomata
-FACEBOOK_APP_ID = "173860999314037"
-FACEBOOK_APP_SECRET = "fa45b2d9686d77a3ceb6f1d48761fd53"
-FACEBOOK_APP_API_KEY = "2114887b3cdc746e96b062d440bc4766"
-FACEBOOK_CANVAS_PAGE_URL = 'http://apps.facebook.com/yoctomata/' # need to switch to https in case https was requested
+#FACEBOOK_APP_ID = "173860999314037"
+#FACEBOOK_APP_SECRET = "fa45b2d9686d77a3ceb6f1d48761fd53"
+#FACEBOOK_APP_API_KEY = "2114887b3cdc746e96b062d440bc4766"
+#FACEBOOK_CANVAS_PAGE_URL = 'http://apps.facebook.com/yoctomata/' # need to switch to https in case https was requested
 
+# test highscore
+FACEBOOK_APP_ID = "308467395870483"
+FACEBOOK_APP_SECRET = "2c27e39e3da2919e59eadbeb40bdfa82"
+FACEBOOK_APP_API_KEY = "2114887b3cdc746e96b062d440bc4766"
+FACEBOOK_CANVAS_PAGE_URL = 'http://apps.facebook.com/test-highscore/' # need to switch to https in case https was requested
 
 
 class MainPage(webapp.RequestHandler):
@@ -38,11 +47,12 @@ class MainPage(webapp.RequestHandler):
         data = json.loads(base64_url_decode(payload))
 
         verified = verifySignature(signature, payload, FACEBOOK_APP_SECRET, data.get('algorithm').upper())
-        if (not verified):
+        if (not verified or ('user_id' not in data)):
             args = {'client_id' : FACEBOOK_APP_ID , 'redirect_uri' : FACEBOOK_CANVAS_PAGE_URL}
             url = "https://www.facebook.com/dialog/oauth?" + urllib.urlencode(args)
             self.response.out.write('<script language="javascript">top.location.href="' + url + '"</script>')
             return
+
 
         userId = data['user_id']
         oauthToken = data['oauth_token']
