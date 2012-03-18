@@ -12,7 +12,7 @@ from google.appengine.api.datastore_errors import TransactionFailedError
 
 from google.appengine.ext.db import ReferencePropertyResolveError
 
-from error import getErrorResponse, TOO_MANY_REVIEWS, NOTHING_TO_REVIEW, CHEATER_BLOCKED, SCORE_TOO_SMALL, NO_PLAYER_SESSION, NOT_ENOUGH_TIME, TOO_MUCH_TIME, ADMIN_ONLY \
+from error import getErrorResponse, CHEATER_BLOCKED, SCORE_TOO_SMALL, NO_PLAYER_SESSION, NOT_ENOUGH_TIME, TOO_MUCH_TIME, ADMIN_ONLY \
 , START_TRANSACTION_FAILURE, SETSCORE_TRANSACTION_FAILURE, LASTREVIEWUPDATE_TRANSACTION_FAILURE, CHECKCONFLICT_TRANSACTION_FAILURE, APPROVESCORE_TRANSACTION_FAILURE, OWNHIGHSCORE_TRANSACTION_FAILURE
 
 import random
@@ -167,7 +167,7 @@ def getRandomScore(playerId):
     def _updateLastReviewAttemptDateTime():
         if playerRecord.lastReviewAttemptDateTime is not None and playerRecord.lastReviewAttemptDateTime > oldEnoughTime:
             # TODO : check whethe rthis randomize stuff is good or not:
-            return getErrorResponse(TOO_MANY_REVIEWS, delay)
+            return {'result' : {'message' : 'You already posted enough reviews, retry later', 'retry' : delay } }
             # could be 2 * reviewTimeUnit / config.nbPlayerPerTimeUnit
 
         playerRecord.lastReviewAttemptDateTime = datetime.datetime.now()
@@ -214,7 +214,7 @@ def getRandomScore(playerId):
         seedList = struct.unpack("4L", scoreToReview.seed)
         return {'result' : { 'proof' : scoreToReview.proof, 'seed' : seedList, 'version' : scoreToReview.version} }
 
-    return {'result' : {'message' : 'Nothing to review for now (just done)'}, 'retry' : delay }
+    return {'result' : {'message' : 'Nothing to review for now (just done)', 'retry' : delay} }
 
 
 def reviewScore(playerId, score, adminMode=False):
@@ -232,7 +232,7 @@ def reviewScore(playerId, score, adminMode=False):
     reviewSession = ReviewSession.get_by_key_name('reviewSession', parent=playerKey)
 
     if reviewSession is None:
-        return getErrorResponse(NOTHING_TO_REVIEW)
+        return {'result' : {'message' : 'nothing to review'} }
 
     scoreToReviewKey = ReviewSession.currentScoreToReview.get_value_for_datastore(reviewSession)
     # We are done with it
@@ -258,7 +258,7 @@ def reviewScore(playerId, score, adminMode=False):
             cheaterRecord.put()
 
         for cheaterKey in cheaters:
-            db.run_in_transaction(_cheaterUpdate,cheaterKey)
+            db.run_in_transaction(_cheaterUpdate,cheaterKey) #TODO : check TRANSACTION ERROR
 
     return {'result' : {'message' : 'review submited'} }
 
@@ -451,7 +451,7 @@ def getOwnHighScore(playerId):
             score = bestScore.nonVerified
 
         if score is None:
-            return {'result' : { 'message' : 'you have no score yet'} }
+            return {'result' : { 'score' : 0, 'time' : 0} }
 
         return {'result' : { 'score' : score.value, 'time' : score.time} }
 
