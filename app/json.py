@@ -13,9 +13,12 @@ class JsonRequestHandler(webapp.RequestHandler):
     # only post for now
     def post(self):
         try:
+            #self.request.
             data = json.loads(self.request.body)
         except Exception, e:
-            d = 0
+            output = json.dumps({'id' : 'unknown', 'error' : {'code' : 35, 'message' : 'cannot parse the request' + e}})
+            self.response.out.write(output)
+            return;
         requestId = data['id']
         methodName = data['method']
         params = data['params']

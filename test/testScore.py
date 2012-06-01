@@ -9,7 +9,7 @@ from stats.model import setReviewTimeUnit
 
 from time import sleep
 from admin.model import getAdmin, setAdmin
-from error import ADMIN_ONLY, TOO_MANY_REVIEWS
+from error import ADMIN_ONLY
 
 class Test(unittest.TestCase):
 
@@ -260,7 +260,7 @@ class Test(unittest.TestCase):
 
         response= service.getRandomScore("reviewer1")
 
-        self.assertTrue('error' in response and response['error']['code'] == TOO_MANY_REVIEWS['code'] and response['error']['retry']  > 0)
+        self.assertTrue('result' in response and response['result']['retry']  > 0)
 
     def test_given_aReviewerGettingRandomScoreQuickly_ItShouldNotBeAskedToRetryLater(self):
 
@@ -284,7 +284,8 @@ class Test(unittest.TestCase):
         service.getRandomScore("reviewer1")
         response= service.getRandomScore("reviewer1")
 
-        self.assertFalse('retry' in response and response['retry'] > 0 and 'error' in response and response['error'] == TOO_MANY_REVIEWS['code'])
+        # TODO : expect a KeyError for retry
+        self.assertFalse('result' in response and response['result']['retry']  > 0)
 
 
     def test_given_aReviewerTryingToReviewAsAdmin_ItShouldBeGivenAnError(self):

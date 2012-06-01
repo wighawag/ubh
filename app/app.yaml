@@ -42,4 +42,7 @@ handlers:
 - url: /amf
   script: amf.py
 
+- url: /json
+  script: json.py
+
 
