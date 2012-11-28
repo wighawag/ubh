@@ -1,0 +1,11 @@
+<TextureAtlas id='jumpjones'>
+    <SubTexture name='walkleft_1' x='0'  y='0' width='32' height='32'/>
+    <SubTexture name='walkright_1' x='32' y='0' width='32' height='32'/>
+    <SubTexture name='walkleft_2' x='64'  y='0' width='32' height='32'/>
+    <SubTexture name='walkright_2' x='96' y='0' width='32' height='32'/>
+
+    <SubTexture name='jumpleft' x='0' y='32' width='32' height='32'/>
+    <SubTexture name='jumpright' x='32' y='32' width='32' height='32'/>
+    <SubTexture name='fallleft' x='64' y='32' width='32' height='32'/>
+    <SubTexture name='fallright' x='96' y='32' width='32' height='32'/>
+</TextureAtlas>

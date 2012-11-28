@@ -37,11 +37,12 @@
   	}
   	window.onresize = echoSize;
 
-	        FB.provide("UIServer.Methods",
-        { 'permissions.request' : { size : {width: 575, height: 300},
-        url: 'connect/uiserver.php',
-        transform : FB.UIServer.genericTransform }
-        } );
+//	        FB.provide("UIServer.Methods",
+//        { 'permissions.request' : { size : {width: 575, height: 300},
+//        url: 'connect/uiserver.php',
+//        //transform : FB.UIServer.genericTransform
+//        }
+//        } );
 
        function streamPublish(name, description, hrefTitle, hrefLink, userPrompt){
         FB.ui(
@@ -87,9 +88,8 @@
         streamPublish("Yoctomata Share", 'Yoctomata is fun! check it out!', 'nothing to add', 'http://apps.facebook.com/yoctomata', "Share your thought");
         }
 
-  	//Flash display
   	var swfVersionStr = "10.0.0";
-            <!-- To use express install, set to playerProductInstall.swf, otherwise the empty string. -->
+    <!-- To use express install, set to playerProductInstall.swf, otherwise the empty string. -->
     var xiSwfUrlStr = "playerProductInstall.swf";
   	var flashvars = {{ flashvars|safe }};
   	var params = {
@@ -97,14 +97,16 @@
     		scale: "noScale",
     		allowFullscreen: "true",
     		allowScriptAccess: "always",
-    		bgcolor: "#999999"
+    		bgcolor: "#999999",
+            base : "http://localhost:8080/facebookCanvas/",
+            wmode : "direct"
   	     };
   	var attributes = {
     		id:"pyAMFTest"
   	    };
 
   	swfobject.embedSWF(
-    		"pyAMFTest.swf",
+    		"Application.swf",
     		"flashContent",
     		"100%",	"100%",
     		swfVersionStr, xiSwfUrlStr,

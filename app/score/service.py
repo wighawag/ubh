@@ -186,7 +186,7 @@ def getRandomScore(playerId):
             return result
 
         # do not allow reviewer to jump on a just posted review. basically the reviewer should have lots of potential review to take from and other reviewer shoudl compete with
-        potentialScoresToReview = db.GqlQuery("SELECT FROM NonVerifiedScore WHERE dateTime < :oldEnoughTime ORDER BY dateTime ASC", oldEnoughTime=oldEnoughTime).fetch(5)
+        potentialScoresToReview = db.GqlQuery("SELECT * FROM NonVerifiedScore WHERE dateTime < :oldEnoughTime ORDER BY dateTime ASC", oldEnoughTime=oldEnoughTime).fetch(5)
 
         scoreToReview = None
         for score in potentialScoresToReview:
@@ -356,7 +356,7 @@ def getHighestNonApprovedScore(playerId):
         return getErrorResponse(ADMIN_ONLY)
 
 
-    scoreToApprove = db.GqlQuery("SELECT FROM VerifiedScore WHERE approvedByAdmin = False ORDER BY value DESC").get()
+    scoreToApprove = db.GqlQuery("SELECT * FROM VerifiedScore WHERE approvedByAdmin = False ORDER BY value DESC").get()
 
     if scoreToApprove is not None:
         playerKey = Key.from_path('Player', playerId)

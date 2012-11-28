@@ -1,0 +1,63 @@
+<sprites>
+
+    <sprite id="jumpjones" textureAtlas="jumpjones" >
+
+        <animation id="idleleft" defaultDuration="200" >
+            <frame subTexture="walkleft_2" x="16" y="32"/>
+        </animation>
+
+        <animation id="idleright" defaultDuration="200" >
+            <frame subTexture="walkright_2" x="16" y="32"/>
+        </animation>
+
+        <animation id="walkright" defaultDuration="200" loopStartFrame="-1" >
+            <frame subTexture="walkright_1" x="16" y="32"/>
+            <frame subTexture="walkright_2" x="16" y="32"/>
+        </animation>
+        <animation id="walkleft" defaultDuration="200" loopStartFrame="4">
+            <frame subTexture="walkleft_1" x="16" y="32"/>
+            <frame subTexture="walkleft_2" x="16" y="32"/>
+            <frame subTexture="walkleft_1" x="16" y="32"overrideDuration="800" />
+            <frame subTexture="walkleft_2" x="16" y="32"/>
+            <frame subTexture="walkleft_1" x="16" y="32"/>
+            <frame subTexture="walkleft_2" x="16" y="32" overrideDuration="300"  />
+            <frame subTexture="jumpleft"   x="16" y="32" overrideDuration="500"  />
+
+        </animation>
+
+        <animation id="jumpleft" defaultDuration="20">
+            <frame subTexture="jumpleft" x="16" y="32"/>
+        </animation>
+        <animation id="jumpright" defaultDuration="20">
+            <frame subTexture="jumpright" x="16" y="32"/>
+        </animation>
+
+        <animation id="fallleft" defaultDuration="20">
+            <frame subTexture="fallleft" x="16" y="32"/>
+        </animation>
+        <animation id="fallright" defaultDuration="20">
+            <frame subTexture="fallright" x="16" y="32"/>
+        </animation>
+
+    </sprite>
+
+    <sprite id="wall" textureAtlas="wall" >
+        <animation id="default" defaultDuration="200" >
+            <frame subTexture="wall" x="0" y="0"/>
+        </animation>
+    </sprite>
+
+    <sprite id="sidewall" textureAtlas="sidewall" >
+        <animation id="default" defaultDuration="200" >
+            <frame subTexture="sidewall" x="0" y="0"/>
+        </animation>
+    </sprite>
+
+    <sprite id="background" textureAtlas="background" >
+        <animation id="default" defaultDuration="200" >
+            <frame subTexture="background" x="0" y="0"/>
+        </animation>
+    </sprite>
+
+
+</sprites>
