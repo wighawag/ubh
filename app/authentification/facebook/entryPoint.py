@@ -25,16 +25,16 @@ import config
 import urllib
 
 # yoctomata
-#FACEBOOK_APP_ID = "173860999314037"
-#FACEBOOK_APP_SECRET = "fa45b2d9686d77a3ceb6f1d48761fd53"
-#FACEBOOK_APP_API_KEY = "2114887b3cdc746e96b062d440bc4766"
-#FACEBOOK_CANVAS_PAGE_URL = 'http://apps.facebook.com/yoctomata/' # need to switch to https in case https was requested
+FACEBOOK_APP_ID = "173860999314037"
+FACEBOOK_APP_SECRET = "fa45b2d9686d77a3ceb6f1d48761fd53"
+FACEBOOK_APP_API_KEY = "2114887b3cdc746e96b062d440bc4766"
+FACEBOOK_CANVAS_PAGE_URL = 'http://apps.facebook.com/yoctomata/' # need to switch to https in case https was requested
 
 # test highscore
-FACEBOOK_APP_ID = "308467395870483"
-FACEBOOK_APP_SECRET = "2c27e39e3da2919e59eadbeb40bdfa82"
-FACEBOOK_APP_API_KEY = "2114887b3cdc746e96b062d440bc4766"
-FACEBOOK_CANVAS_PAGE_URL = 'http://apps.facebook.com/test-highscore/' # need to switch to https in case https was requested
+#FACEBOOK_APP_ID = "308467395870483"
+#FACEBOOK_APP_SECRET = "2c27e39e3da2919e59eadbeb40bdfa82"
+#FACEBOOK_APP_API_KEY = "2114887b3cdc746e96b062d440bc4766"
+#FACEBOOK_CANVAS_PAGE_URL = 'http://apps.facebook.com/test-highscore/' # need to switch to https in case https was requested
 
 
 class MainPage(webapp.RequestHandler):
